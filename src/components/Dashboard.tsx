@@ -60,7 +60,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
       <div className="px-3 py-12">
         <EmptyState
           title="טוען נתונים..."
-          hint="מאחזר דיונים מהמכשיר"
+          hint="מתחבר לשרת"
         />
       </div>
     );

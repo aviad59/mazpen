@@ -10,7 +10,6 @@ import type { Discussion, DiscussionStatus, Priority } from "@/types";
 
 export interface EditState {
   name: string;
-  requester: string;
   notes: string;
   summary: string;
   scheduledAt: string | null;
@@ -45,14 +44,6 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       <div>
         <Label>שם הדיון</Label>
         <Input value={state.name} onChange={(e) => onChange({ name: e.target.value })} />
-      </div>
-
-      <div>
-        <Label>{T.requester}</Label>
-        <Input
-          value={state.requester}
-          onChange={(e) => onChange({ requester: e.target.value })}
-        />
       </div>
 
       <div>

@@ -84,12 +84,13 @@ export interface Discussion {
   /** ID of the discussion leader (one of participantIds). Optional. */
   leaderId?: string | null;
 
-  /** Whether this discussion requires a written summary. */
+  /**
+   * Whether this discussion requires a written summary.
+   * When true, the discussion walks the full lifecycle:
+   *   waiting_summary → waiting_approval → waiting_distribution → completed.
+   * When false, occurrence completes the discussion immediately.
+   */
   requiresSummary: boolean;
-  /** Whether the summary must pass commander approval. */
-  requiresApproval: boolean;
-  /** Whether summary distribution is part of the workflow. */
-  requiresDistribution: boolean;
 
   /** Free text – topic, agenda, context. */
   notes?: string;

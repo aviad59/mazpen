@@ -35,8 +35,6 @@ interface DiscussionRow {
   extra_participants: string[] | null;
   leader_id: string | null;
   requires_summary: boolean;
-  requires_approval: boolean;
-  requires_distribution: boolean;
   notes: string | null;
   summary: string | null;
   attachments: Attachment[];
@@ -65,8 +63,6 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     extraParticipants: r.extra_participants ?? undefined,
     leaderId: r.leader_id ?? null,
     requiresSummary: r.requires_summary,
-    requiresApproval: r.requires_approval,
-    requiresDistribution: r.requires_distribution,
     notes: r.notes ?? undefined,
     summary: r.summary ?? undefined,
     attachments: r.attachments ?? [],
@@ -88,8 +84,6 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     extra_participants: d.extraParticipants ?? null,
     leader_id: d.leaderId ?? null,
     requires_summary: d.requiresSummary,
-    requires_approval: d.requiresApproval,
-    requires_distribution: d.requiresDistribution,
     notes: d.notes ?? null,
     summary: d.summary ?? null,
     attachments: d.attachments,

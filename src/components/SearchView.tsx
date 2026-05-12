@@ -50,19 +50,27 @@ export function SearchView({ onOpenDiscussion }: Props) {
         }
 
         if (participantId) {
-          if (!d.participantIds.includes(participantId) && d.leaderId !== participantId)
+          if (
+            !d.participantIds.includes(participantId) &&
+            d.leaderId !== participantId
+          )
             return false;
         }
 
         if (!q) return true;
+
+        // Build search haystack across name, notes, summary, and each
+        // participant's name + role + unit (title and unit are searchable).
+        const participantStrings = d.participantIds.flatMap((id) => {
+          const p = lookupParticipant(id);
+          if (!p) return [];
+          return [p.name, p.role ?? "", p.unit ?? ""];
+        });
         const haystack = [
           d.name,
-          d.requester,
           d.notes ?? "",
           d.summary ?? "",
-          ...d.participantIds
-            .map((id) => lookupParticipant(id)?.name ?? "")
-            .filter(Boolean),
+          ...participantStrings,
           d.leaderId ? lookupParticipant(d.leaderId)?.name ?? "" : "",
         ]
           .join(" ")
@@ -74,7 +82,6 @@ export function SearchView({ onOpenDiscussion }: Props) {
 
   return (
     <div className="space-y-3 pt-3 pb-24">
-      {/* Search bar */}
       <div className="relative px-3">
         <SearchIcon
           size={16}
@@ -98,7 +105,6 @@ export function SearchView({ onOpenDiscussion }: Props) {
         )}
       </div>
 
-      {/* Quick filters */}
       <div className="px-3 -mx-1 overflow-x-auto scrollbar-thin">
         <div className="flex gap-2 px-1 pb-1 whitespace-nowrap">
           {(Object.keys(QUICK_LABEL) as Quick[]).map((q) => (
@@ -114,7 +120,6 @@ export function SearchView({ onOpenDiscussion }: Props) {
         </div>
       </div>
 
-      {/* Participant filter */}
       <div className="px-3 -mx-1 overflow-x-auto scrollbar-thin">
         <div className="flex items-center gap-2 px-1 pb-1 whitespace-nowrap">
           <Filter size={12} className="text-muted-foreground" />
@@ -131,7 +136,9 @@ export function SearchView({ onOpenDiscussion }: Props) {
               key={p.id}
               size="sm"
               active={participantId === p.id}
-              onClick={() => setParticipantId(p.id === participantId ? "" : p.id)}
+              onClick={() =>
+                setParticipantId(p.id === participantId ? "" : p.id)
+              }
             >
               {p.name}
             </Chip>
@@ -139,7 +146,6 @@ export function SearchView({ onOpenDiscussion }: Props) {
         </div>
       </div>
 
-      {/* Results */}
       <div className="px-3 space-y-2">
         {filtered.length === 0 ? (
           <EmptyState

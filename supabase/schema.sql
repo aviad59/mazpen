@@ -23,8 +23,6 @@ create table if not exists public.discussions (
   extra_participants      text[],
   leader_id               text,
   requires_summary        boolean not null default true,
-  requires_approval       boolean not null default false,
-  requires_distribution   boolean not null default false,
   notes                   text,
   summary                 text,
   attachments             jsonb not null default '[]'::jsonb,

@@ -1,5 +1,6 @@
 import * as React from "react";
 import {
+  Building2,
   Calendar as CalIcon,
   CheckCircle2,
   ChevronLeft,
@@ -13,7 +14,6 @@ import {
   Sparkles,
   Trash2,
   Undo2,
-  User,
   Users,
 } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
@@ -26,7 +26,7 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
-import { STATUS_LABEL, T } from "@/lib/he";
+import { HOME_UNIT, STATUS_LABEL, T } from "@/lib/he";
 import { cn, formatHebrewDate } from "@/lib/utils";
 import type { Discussion, DiscussionStatus } from "@/types";
 
@@ -37,7 +37,6 @@ interface Props {
   onDuplicate?: (template: Discussion) => void;
 }
 
-/** Forward action map: status → next-step button(s). */
 const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
   requires_scheduling: [{ label: T.markOccurred, to: "occurred" }],
   scheduled: [{ label: T.markOccurred, to: "occurred" }],
@@ -49,7 +48,6 @@ const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStat
   cancelled: [],
 };
 
-/** Reverse action map: status → previous logical step. */
 const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
   requires_scheduling: null,
   scheduled: "requires_scheduling",
@@ -63,7 +61,6 @@ const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
 
 const EMPTY_EDIT: EditState = {
   name: "",
-  requester: "",
   notes: "",
   summary: "",
   scheduledAt: null,
@@ -87,12 +84,10 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   const [note, setNote] = React.useState("");
   const [draftSummary, setDraftSummary] = React.useState("");
 
-  // Re-hydrate edit state when the discussion changes.
   React.useEffect(() => {
     if (!discussion) return;
     setEdit({
       name: discussion.name,
-      requester: discussion.requester,
       notes: discussion.notes ?? "",
       summary: discussion.summary ?? "",
       scheduledAt: discussion.scheduledAt,
@@ -115,7 +110,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     if (!d) return;
     const patch: Partial<Discussion> = {
       name: edit.name.trim(),
-      requester: edit.requester.trim(),
       notes: edit.notes.trim() || undefined,
       summary: edit.summary.trim() || undefined,
       participantIds: edit.participantIds,
@@ -187,6 +181,15 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
 
+  // Distinct non-home units present among participants
+  const externalUnitsList = Array.from(
+    new Set(
+      d.participantIds
+        .map((id) => lookupParticipant(id)?.unit)
+        .filter((u): u is string => !!u && u !== HOME_UNIT)
+    )
+  );
+
   return (
     <Sheet
       open={open}
@@ -205,7 +208,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           {d.requiresDistribution && <Badge tone="muted">דורש הפצה</Badge>}
         </div>
 
-        {/* Date / requester / leader */}
+        {/* Date / leader / external units */}
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm">
             <CalIcon
@@ -221,21 +224,25 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
               {unscheduled ? T.notScheduled : formatHebrewDate(d.scheduledAt)}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-2 text-sm">
-            <User size={14} className="text-muted-foreground" />
-            <span className="text-muted-foreground">דורש:</span>
-            <span className="font-medium">{d.requester}</span>
-          </div>
           {leader && (
-            <div className="mt-1 flex items-center gap-2 text-sm">
+            <div className="mt-2 flex items-center gap-2 text-sm">
               <Sparkles size={14} className="text-muted-foreground" />
               <span className="text-muted-foreground">מוביל:</span>
               <span className="font-medium">{leader.name}</span>
             </div>
           )}
+          {externalUnitsList.length > 0 && (
+            <div className="mt-2 flex items-start gap-2 text-sm">
+              <Building2 size={14} className="text-warning mt-[2px]" />
+              <div className="leading-snug">
+                <span className="text-muted-foreground">{T.externalUnits}:</span>{" "}
+                <span className="font-medium">{externalUnitsList.join(" · ")}</span>
+              </div>
+            </div>
+          )}
         </Card>
 
-        {/* Quick actions (view mode only) */}
+        {/* Quick actions */}
         {!editing && (nextActions.length > 0 || prevStatus) && (
           <div>
             <Label>פעולות מהירות</Label>
@@ -277,7 +284,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </div>
         )}
 
-        {/* Participants list (view) */}
+        {/* Participants list */}
         {!editing && (
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -295,16 +302,18 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                 {d.participantIds.map((id) => {
                   const p = lookupParticipant(id);
                   if (!p) return null;
+                  const isExternal = !!p.unit && p.unit !== HOME_UNIT;
                   return (
                     <li key={id} className="flex items-center gap-2">
                       <Avatar name={p.name} size="sm" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate">
-                          {p.name}
+                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                          <span className="truncate">{p.name}</span>
                           {p.id === d.leaderId && (
-                            <Badge tone="accent" className="mr-1.5">
-                              מוביל
-                            </Badge>
+                            <Badge tone="accent">מוביל</Badge>
+                          )}
+                          {isExternal && (
+                            <Badge tone="warning">חיצוני</Badge>
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
@@ -319,7 +328,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Notes (view) */}
+        {/* Notes */}
         {!editing && d.notes && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -329,7 +338,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Summary (view) */}
+        {/* Summary */}
         {!editing && d.requiresSummary && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -354,7 +363,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Attachments (view) */}
+        {/* Attachments */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -376,7 +385,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Quick add-note (view) */}
+        {/* Add note */}
         {!editing && (
           <Card className="p-4">
             <Label>הוסף הערה / עדכון</Label>
@@ -399,7 +408,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* History (view) */}
+        {/* History */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3">

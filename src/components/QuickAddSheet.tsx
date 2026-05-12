@@ -20,13 +20,6 @@ interface Props {
   template?: Partial<Discussion> | null;
 }
 
-const DEFAULT_REQUESTERS = [
-  'אל"ם אמיר כהן',
-  'סא"ל נועה לוי',
-  'אל"ם איתן רוזן',
-  'סא"ל קרן שמש',
-];
-
 export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const { participants, addParticipant, createDiscussion } = useStore();
 
@@ -36,8 +29,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [leaderId, setLeaderId] = React.useState<string>("");
   const [priority, setPriority] = React.useState<Priority>("normal");
   const [requiresSummary, setRequiresSummary] = React.useState(true);
-  const [requiresApproval, setRequiresApproval] = React.useState(false);
-  const [requiresDistribution, setRequiresDistribution] = React.useState(false);
   const [notes, setNotes] = React.useState("");
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -52,8 +43,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setLeaderId(template?.leaderId ?? "");
     setPriority(template?.priority ?? "normal");
     setRequiresSummary(template?.requiresSummary ?? true);
-    setRequiresApproval(template?.requiresApproval ?? false);
-    setRequiresDistribution(template?.requiresDistribution ?? false);
     setNotes(template?.notes ?? "");
     setShowAdvanced(false);
 
@@ -74,8 +63,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         leaderId: leaderId || null,
         priority,
         requiresSummary,
-        requiresApproval,
-        requiresDistribution,
         notes: notes.trim() || undefined,
       });
       onCreated?.(created);
@@ -131,24 +118,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             placeholder="לדוגמה: סיכום שבועי תמונת מצב"
             required
           />
-        </div>
-
-        {/* Requester */}
-        <div>
-          <Label htmlFor="qa-requester">{T.requester} *</Label>
-          <Input
-            id="qa-requester"
-            value={requester}
-            onChange={(e) => setRequester(e.target.value)}
-            list="qa-requesters"
-            placeholder={'לדוגמה: סא"ל נועה לוי'}
-            required
-          />
-          <datalist id="qa-requesters">
-            {DEFAULT_REQUESTERS.map((r) => (
-              <option key={r} value={r} />
-            ))}
-          </datalist>
         </div>
 
         {/* Date — relative chips */}
@@ -222,24 +191,17 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
               />
             </div>
 
-            <div className="rounded-lg bg-muted/50 p-3 space-y-3">
+            <div className="rounded-lg bg-muted/50 p-3 space-y-2">
               <Switch
                 checked={requiresSummary}
                 onChange={setRequiresSummary}
                 label={T.requiresSummary}
               />
-              <Switch
-                checked={requiresApproval}
-                onChange={setRequiresApproval}
-                disabled={!requiresSummary}
-                label={T.requiresApproval}
-              />
-              <Switch
-                checked={requiresDistribution}
-                onChange={setRequiresDistribution}
-                disabled={!requiresSummary}
-                label={T.requiresDistribution}
-              />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {requiresSummary
+                  ? "דיון שדורש סיכום עובר אוטומטית גם אישור מפקד והפצה."
+                  : "הדיון יסומן כהושלם מיד לאחר שיתקיים."}
+              </p>
             </div>
           </div>
         )}

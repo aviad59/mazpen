@@ -122,8 +122,6 @@ export type CreateDiscussionInput = {
   leaderId?: string | null;
   priority?: Discussion["priority"];
   requiresSummary?: boolean;
-  requiresApproval?: boolean;
-  requiresDistribution?: boolean;
   notes?: string;
   durationMinutes?: number;
 };
@@ -140,8 +138,6 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     participantIds: input.participantIds ?? [],
     leaderId: input.leaderId ?? null,
     requiresSummary: input.requiresSummary ?? true,
-    requiresApproval: input.requiresApproval ?? false,
-    requiresDistribution: input.requiresDistribution ?? false,
     notes: input.notes,
     attachments: [],
     history: [

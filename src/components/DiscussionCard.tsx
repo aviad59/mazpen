@@ -1,11 +1,11 @@
-import { Calendar, FileText, Paperclip, User, AlertCircle } from "lucide-react";
+import { Building2, Calendar, FileText, Paperclip, AlertCircle } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
 import { cn, formatHebrewDate, isSoon } from "@/lib/utils";
 import type { Discussion, Participant } from "@/types";
-import { T } from "@/lib/he";
+import { HOME_UNIT, T } from "@/lib/he";
 
 interface Props {
   discussion: Discussion;
@@ -13,6 +13,15 @@ interface Props {
   onOpen: (id: string) => void;
   /** When true, render compact (less spacing). */
   compact?: boolean;
+}
+
+/** Distinct non-home units present among the discussion's participants. */
+function externalUnits(participants: Participant[]): string[] {
+  const seen = new Set<string>();
+  for (const p of participants) {
+    if (p.unit && p.unit !== HOME_UNIT) seen.add(p.unit);
+  }
+  return Array.from(seen);
 }
 
 export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact }: Props) {
@@ -24,6 +33,8 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
   const participants = d.participantIds
     .map((id) => lookupParticipant(id))
     .filter((p): p is Participant => !!p);
+
+  const ext = externalUnits(participants);
 
   return (
     <Card
@@ -44,9 +55,14 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         }
       }}
     >
-      {/* Header: name + urgent strip */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-2">
-        <h3 className={cn("font-semibold leading-snug text-balance text-foreground", compact ? "text-sm" : "text-[15px]")}>
+        <h3
+          className={cn(
+            "font-semibold leading-snug text-balance text-foreground",
+            compact ? "text-sm" : "text-[15px]"
+          )}
+        >
           {urgent && (
             <AlertCircle
               size={14}
@@ -58,7 +74,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         </h3>
       </div>
 
-      {/* Date row — visually dominant */}
+      {/* Date row */}
       <div
         className={cn(
           "mt-2 flex items-center gap-1.5 text-sm",
@@ -82,11 +98,16 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         )}
       </div>
 
-      {/* Meta row: requester */}
-      <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-        <User size={12} />
-        <span className="truncate">דרש: {d.requester}</span>
-      </div>
+      {/* External units callout — operationally important: who's NOT from מצפן */}
+      {ext.length > 0 && (
+        <div className="mt-1.5 flex items-start gap-1 text-xs text-warning">
+          <Building2 size={12} className="mt-[2px] shrink-0" />
+          <span className="leading-snug">
+            <span className="font-medium">{T.hasExternals}:</span>{" "}
+            <span className="truncate">{ext.join(" · ")}</span>
+          </span>
+        </div>
+      )}
 
       {/* Participants strip */}
       {participants.length > 0 && (
@@ -102,7 +123,9 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
             ))}
           </div>
           {participants.length > 4 && (
-            <span className="text-[11px] text-muted-foreground">+{participants.length - 4}</span>
+            <span className="text-[11px] text-muted-foreground">
+              +{participants.length - 4}
+            </span>
           )}
           {leader && (
             <Badge tone="muted" className="ms-auto">
@@ -112,7 +135,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         </div>
       )}
 
-      {/* Footer: status + indicators */}
+      {/* Footer */}
       <div className="mt-3 flex items-center gap-1.5 flex-wrap">
         <StatusBadge status={d.status} />
         <PriorityBadge priority={d.priority} />
