@@ -7,15 +7,25 @@ interface SheetProps {
   onClose: () => void;
   children: React.ReactNode;
   title?: React.ReactNode;
-  /** mobile = slides from bottom; full = full-screen on mobile */
+  /** mobile = bottom sheet with grabber; full = full-screen on mobile */
   size?: "mobile" | "full";
+  /** Optional sticky footer node (e.g. action buttons). */
+  footer?: React.ReactNode;
 }
 
 /**
- * A bottom-sheet that becomes a centered modal on larger screens.
- * Designed for mobile-first one-hand usage; on phones it slides from bottom.
+ * Bottom-sheet that turns into a centered modal on desktop.
+ * Layout is a strict flex column so the body scrolls but the
+ * header & footer stay fixed within the sheet bounds.
  */
-export function Sheet({ open, onClose, children, title, size = "mobile" }: SheetProps) {
+export function Sheet({
+  open,
+  onClose,
+  children,
+  title,
+  size = "mobile",
+  footer,
+}: SheetProps) {
   React.useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -33,47 +43,49 @@ export function Sheet({ open, onClose, children, title, size = "mobile" }: Sheet
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
-      {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/50 animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
-
-      {/* sheet */}
       <div
         className={cn(
-          "relative mt-auto w-full bg-background animate-slide-up",
-          "border-t border-border shadow-2xl",
-          "rounded-t-3xl",
-          size === "mobile" && "max-h-[92vh]",
+          "relative mt-auto w-full bg-background animate-slide-up flex flex-col",
+          "border-t border-border shadow-2xl rounded-t-3xl",
+          size === "mobile" && "max-h-[92dvh]",
           size === "full" && "h-[100dvh] rounded-none",
-          "md:max-w-xl md:mx-auto md:mb-6 md:rounded-3xl md:border md:max-h-[88vh]"
+          "md:max-w-xl md:mx-auto md:mb-6 md:rounded-3xl md:border md:max-h-[88dvh]"
         )}
         role="dialog"
         aria-modal="true"
       >
-        {/* grabber */}
-        <div className="flex justify-center pt-2 pb-1 md:hidden">
+        <div className="flex justify-center pt-2 pb-1 md:hidden shrink-0">
           <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
         </div>
 
-        {/* header */}
-        <div className="flex items-center justify-between px-5 pt-2 pb-3">
-          <h2 className="text-base font-semibold text-balance">{title}</h2>
+        <div className="flex items-center justify-between px-5 pt-1 pb-3 shrink-0 border-b border-border/60">
+          <h2 className="text-base font-semibold text-balance min-w-0 truncate pr-2">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 hover:bg-muted no-tap-highlight"
+            className="rounded-lg p-2 hover:bg-muted no-tap-highlight shrink-0"
             aria-label="סגירה"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="overflow-y-auto px-5 pb-6 scrollbar-thin safe-bottom">
+        <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-5 py-4">
           {children}
         </div>
+
+        {footer && (
+          <div className="shrink-0 border-t border-border bg-background px-5 py-3 safe-bottom">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );

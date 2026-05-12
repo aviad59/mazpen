@@ -1,4 +1,4 @@
-import { Calendar, Clock, FileText, Paperclip, User, AlertCircle } from "lucide-react";
+import { Calendar, FileText, Paperclip, User, AlertCircle } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
@@ -76,11 +76,8 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
           </>
         ) : (
           <>
-            <Clock size={14} />
+            <Calendar size={14} />
             <span>{formatHebrewDate(d.scheduledAt)}</span>
-            {d.durationMinutes && (
-              <span className="text-muted-foreground text-xs">· {d.durationMinutes} ד'</span>
-            )}
           </>
         )}
       </div>

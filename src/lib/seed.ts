@@ -1,6 +1,9 @@
 /**
- * Seed data — predefined participants and 18 realistic discussions
+ * Seed data — predefined participants and ~18 realistic discussions
  * spread across every lifecycle stage. Loaded once on first DB open.
+ *
+ * Each participant has: rank (in `role` for now), function, and unit.
+ * Participants with unit === "מצפן" are internal; others are external.
  */
 
 import type { Discussion, Participant } from "@/types";
@@ -11,24 +14,39 @@ const HOUR = 3600_000;
 const DAY = 24 * HOUR;
 
 export const SEED_PARTICIPANTS: Participant[] = [
-  { id: "p-amir", name: "אמיר כהן", role: "אל\"ם", unit: "מטה" },
-  { id: "p-noa", name: "נועה לוי", role: "סא\"ל", unit: "מבצעים" },
-  { id: "p-yair", name: "יאיר אבני", role: "רס\"ן", unit: "מודיעין" },
-  { id: "p-dana", name: "דנה ברקת", role: "רס\"ן", unit: "תקשוב" },
-  { id: "p-tomer", name: "תומר שגיא", role: "סא\"ל", unit: "לוגיסטיקה" },
-  { id: "p-maya", name: "מאיה גולן", role: "רס\"ן", unit: "כ\"א" },
-  { id: "p-eitan", name: "איתן רוזן", role: "אל\"ם", unit: "פיקוד" },
-  { id: "p-ronit", name: "רונית פז", role: "רס\"ן", unit: "מבצעים" },
-  { id: "p-oren", name: "אורן דגן", role: "רס\"ן", unit: "אג\"ם" },
-  { id: "p-shira", name: "שירה אלון", role: "סרן", unit: "תוה\"ד" },
-  { id: "p-gilad", name: "גלעד מזרחי", role: "סא\"ל", unit: "מודיעין" },
-  { id: "p-hila", name: "הילה ניר", role: "רס\"ן", unit: "תקשוב" },
-  { id: "p-ido", name: "עידו ברק", role: "סרן", unit: "מבצעים" },
-  { id: "p-keren", name: "קרן שמש", role: "סא\"ל", unit: "מטה" },
-  { id: "p-roi", name: "רועי טל", role: "אל\"ם", unit: "פיקוד" },
+  // --- Internal (מצפן) ---
+  { id: "p-amir",  name: "אמיר כהן",    role: 'אל"ם · ראש מטה',            unit: "מצפן" },
+  { id: "p-noa",   name: "נועה לוי",    role: 'סא"ל · ראש מבצעים',         unit: "מצפן" },
+  { id: "p-yair",  name: "יאיר אבני",   role: 'רס"ן · קצין מודיעין',       unit: "מצפן" },
+  { id: "p-dana",  name: "דנה ברקת",    role: 'רס"ן · ראש תקשוב',          unit: "מצפן" },
+  { id: "p-tomer", name: "תומר שגיא",   role: 'סא"ל · ראש לוגיסטיקה',      unit: "מצפן" },
+  { id: "p-maya",  name: "מאיה גולן",   role: 'רס"ן · קצינת כ"א',          unit: "מצפן" },
+  { id: "p-eitan", name: "איתן רוזן",   role: 'אל"ם · סגן מפקד',            unit: "מצפן" },
+  { id: "p-ronit", name: "רונית פז",    role: 'רס"ן · קצינת מבצעים',       unit: "מצפן" },
+  { id: "p-shira", name: "שירה אלון",   role: 'סרן · קצינת תוה"ד',          unit: "מצפן" },
+  { id: "p-ido",   name: "עידו ברק",    role: "סרן · קצין מבצעים",          unit: "מצפן" },
+  { id: "p-keren", name: "קרן שמש",     role: 'סא"ל · קצינת תכנון',        unit: "מצפן" },
+  { id: "p-roi",   name: "רועי טל",     role: 'אל"ם · מפקד',                unit: "מצפן" },
+  // --- External ---
+  { id: "p-oren",  name: "אורן דגן",    role: 'סא"ל · ראש מדור',            unit: "אג\"ם — מטכ\"ל", external: true },
+  { id: "p-gilad", name: "גלעד מזרחי",  role: 'סא"ל · קצין מודיעין בכיר',   unit: 'אמ"ן', external: true },
+  { id: "p-hila",  name: "הילה ניר",    role: 'רס"ן · קצינת אבטחת מידע',    unit: "אגף תקשוב — מטכ\"ל", external: true },
+  { id: "p-lior",  name: "ליאור אהרון", role: 'אל"ם · רע"ן מבצעים',         unit: "אוגדה 162", external: true },
+  { id: "p-tal",   name: "טל פרידמן",   role: 'סא"ל · קצין קישור',          unit: "חיל האוויר", external: true },
+  { id: "p-yael",  name: "יעל אדלר",    role: "רס\"ן · מתאמת",              unit: "משרד הבט\"ח", external: true },
 ];
 
-const hist = (kind: any, text: string, daysAgo: number, by?: string) => ({
+type HistKind =
+  | "created"
+  | "status_changed"
+  | "date_changed"
+  | "participants_changed"
+  | "leader_changed"
+  | "summary_changed"
+  | "note"
+  | "attachment_added";
+
+const hist = (kind: HistKind, text: string, daysAgo: number, by?: string) => ({
   id: `h-${Math.random().toString(36).slice(2, 9)}`,
   kind,
   at: ISO(-daysAgo * DAY),
@@ -40,11 +58,10 @@ let counter = 0;
 const id = () => `disc-seed-${++counter}`;
 
 export const SEED_DISCUSSIONS: Discussion[] = [
-  // === REQUIRES SCHEDULING (top priority — always visible) ===
+  // === REQUIRES SCHEDULING ===
   {
     id: id(),
     name: "סיכום שבועי — תמונת מצב מבצעית",
-    requester: "אל\"ם אמיר כהן",
     status: "requires_scheduling",
     priority: "high",
     scheduledAt: null,
@@ -61,17 +78,16 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   },
   {
     id: id(),
-    name: "תרגיל \"רוח צפונית\" — תיאום סופי",
-    requester: "אל\"ם איתן רוזן",
+    name: 'תרגיל "רוח צפונית" — תיאום סופי',
     status: "requires_scheduling",
     priority: "urgent",
     scheduledAt: null,
-    participantIds: ["p-eitan", "p-tomer", "p-oren", "p-gilad", "p-hila"],
+    participantIds: ["p-eitan", "p-tomer", "p-oren", "p-gilad", "p-lior"],
     leaderId: "p-eitan",
     requiresSummary: true,
     requiresApproval: true,
     requiresDistribution: true,
-    notes: "דיון דחוף — לתאם השבוע. נדרשת נוכחות לוגיסטיקה.",
+    notes: 'דחוף — נדרשת נוכחות לוגיסטיקה ונציגי אג"ם/אוגדה 162.',
     attachments: [],
     history: [hist("created", "הדיון נוצר", 2, "מזכירות")],
     createdAt: ISO(-2 * DAY),
@@ -80,7 +96,6 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "תקציב רבעוני — דיון פתיחה",
-    requester: "סא\"ל קרן שמש",
     status: "requires_scheduling",
     priority: "normal",
     scheduledAt: null,
@@ -97,8 +112,7 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   },
   {
     id: id(),
-    name: "טיוב נהלי תקשוב — מפגש ראשון",
-    requester: "רס\"ן דנה ברקת",
+    name: "טיוב נהלי אבטחת מידע",
     status: "requires_scheduling",
     priority: "normal",
     scheduledAt: null,
@@ -106,22 +120,20 @@ export const SEED_DISCUSSIONS: Discussion[] = [
     requiresSummary: true,
     requiresApproval: false,
     requiresDistribution: false,
-    notes: "המבקש ביקש שעה אחרי הצהריים.",
+    notes: "כולל הילה מאגף תקשוב במטכ\"ל. ליום שני אחה\"צ.",
     attachments: [],
     history: [hist("created", "הדיון נוצר", 0, "מזכירות")],
     createdAt: ISO(-6 * HOUR),
     updatedAt: ISO(-6 * HOUR),
   },
 
-  // === SCHEDULED (upcoming) ===
+  // === SCHEDULED ===
   {
     id: id(),
     name: "תדריך בוקר מ\"פים",
-    requester: "אל\"ם אמיר כהן",
     status: "scheduled",
     priority: "high",
-    scheduledAt: ISO(2 * HOUR), // today, soon
-    durationMinutes: 30,
+    scheduledAt: ISO(2 * HOUR),
     participantIds: ["p-amir", "p-noa", "p-ronit", "p-ido"],
     leaderId: "p-amir",
     requiresSummary: false,
@@ -139,11 +151,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סטטוס ארגוני — מנהלי תחומים",
-    requester: "סא\"ל נועה לוי",
     status: "scheduled",
     priority: "normal",
-    scheduledAt: ISO(1 * DAY + 3 * HOUR), // tomorrow
-    durationMinutes: 60,
+    scheduledAt: ISO(1 * DAY + 3 * HOUR),
     participantIds: ["p-noa", "p-maya", "p-dana", "p-tomer"],
     leaderId: "p-noa",
     requiresSummary: true,
@@ -157,24 +167,22 @@ export const SEED_DISCUSSIONS: Discussion[] = [
       hist("date_changed", "נקבע מועד", 5),
       hist("attachment_added", "סדר יום נוסף", 1, "נועה"),
     ],
-    notes: "מנהלי תחומים בלבד. נא להגיע עם סטטוס משימות.",
+    notes: "מנהלי תחומים בלבד.",
     createdAt: ISO(-5 * DAY),
     updatedAt: ISO(-1 * DAY),
   },
   {
     id: id(),
     name: "ביקור מפקד אוגדה",
-    requester: "אל\"ם רועי טל",
     status: "scheduled",
     priority: "urgent",
     scheduledAt: ISO(2 * DAY + 5 * HOUR),
-    durationMinutes: 90,
-    participantIds: ["p-roi", "p-eitan", "p-amir", "p-noa", "p-keren"],
+    participantIds: ["p-roi", "p-eitan", "p-amir", "p-noa", "p-keren", "p-lior"],
     leaderId: "p-roi",
     requiresSummary: true,
     requiresApproval: true,
     requiresDistribution: true,
-    notes: "סיור + תדריך מטה. דרושה הצגה.",
+    notes: "סיור + תדריך מטה. נציג אוגדה 162 יגיע יחד עם מפקד האוגדה.",
     attachments: [
       { id: "att-2", name: "מצגת ביקור.pptx", kind: "presentation", addedAt: ISO(-2 * DAY) },
     ],
@@ -188,16 +196,15 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סקירת מודיעין שבועית",
-    requester: "סא\"ל גלעד מזרחי",
     status: "scheduled",
     priority: "normal",
     scheduledAt: ISO(3 * DAY + 4 * HOUR),
-    durationMinutes: 45,
     participantIds: ["p-gilad", "p-yair", "p-noa"],
     leaderId: "p-gilad",
     requiresSummary: true,
     requiresApproval: false,
     requiresDistribution: true,
+    notes: 'כולל גלעד מאמ"ן.',
     attachments: [],
     history: [hist("created", "הדיון נוצר", 2, "מזכירות")],
     createdAt: ISO(-2 * DAY),
@@ -206,32 +213,29 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "הכנה לתרגיל פיקוד",
-    requester: "אל\"ם איתן רוזן",
     status: "scheduled",
     priority: "high",
     scheduledAt: ISO(5 * DAY + 2 * HOUR),
-    durationMinutes: 120,
-    participantIds: ["p-eitan", "p-oren", "p-tomer", "p-keren", "p-ronit"],
+    participantIds: ["p-eitan", "p-oren", "p-tomer", "p-keren", "p-ronit", "p-tal"],
     leaderId: "p-oren",
     requiresSummary: true,
     requiresApproval: true,
     requiresDistribution: true,
+    notes: "תיאום חצי-שנתי. כולל קצין קישור מחיל האוויר.",
     attachments: [],
     history: [hist("created", "הדיון נוצר", 6, "מזכירות")],
     createdAt: ISO(-6 * DAY),
     updatedAt: ISO(-6 * DAY),
   },
 
-  // === WAITING FOR SUMMARY (meeting happened, summary pending) ===
+  // === WAITING FOR SUMMARY ===
   {
     id: id(),
     name: "סיכום אירוע מבצעי 19/04",
-    requester: "סא\"ל נועה לוי",
     status: "waiting_summary",
     priority: "urgent",
     scheduledAt: ISO(-2 * DAY),
-    durationMinutes: 60,
-    participantIds: ["p-noa", "p-yair", "p-amir", "p-eitan"],
+    participantIds: ["p-noa", "p-yair", "p-amir", "p-eitan", "p-gilad"],
     leaderId: "p-yair",
     requiresSummary: true,
     requiresApproval: true,
@@ -248,11 +252,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "בחינת תקלת תקשוב",
-    requester: "רס\"ן דנה ברקת",
     status: "waiting_summary",
     priority: "normal",
     scheduledAt: ISO(-1 * DAY),
-    durationMinutes: 45,
     participantIds: ["p-dana", "p-hila", "p-yair"],
     leaderId: "p-dana",
     requiresSummary: true,
@@ -269,11 +271,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "ועדת מינויים — דיון ראשון",
-    requester: "רס\"ן מאיה גולן",
     status: "waiting_summary",
     priority: "high",
     scheduledAt: ISO(-3 * DAY),
-    durationMinutes: 90,
     participantIds: ["p-maya", "p-amir", "p-keren"],
     leaderId: "p-maya",
     requiresSummary: true,
@@ -292,12 +292,10 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סיכום ישיבת סטטוס לוגיסטיקה",
-    requester: "סא\"ל תומר שגיא",
     status: "waiting_approval",
     priority: "normal",
     scheduledAt: ISO(-4 * DAY),
-    durationMinutes: 60,
-    participantIds: ["p-tomer", "p-keren", "p-amir"],
+    participantIds: ["p-tomer", "p-keren", "p-amir", "p-yael"],
     leaderId: "p-tomer",
     requiresSummary: true,
     requiresApproval: true,
@@ -316,11 +314,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סיכום ועדת מינויים",
-    requester: "רס\"ן מאיה גולן",
     status: "waiting_approval",
     priority: "high",
     scheduledAt: ISO(-6 * DAY),
-    durationMinutes: 90,
     participantIds: ["p-maya", "p-amir", "p-keren"],
     leaderId: "p-maya",
     requiresSummary: true,
@@ -341,11 +337,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סיכום הדרכת אבטחת מידע",
-    requester: "רס\"ן הילה ניר",
     status: "waiting_distribution",
     priority: "normal",
     scheduledAt: ISO(-5 * DAY),
-    durationMinutes: 60,
     participantIds: ["p-hila", "p-dana", "p-yair"],
     leaderId: "p-hila",
     requiresSummary: true,
@@ -370,11 +364,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סיכום אירוע 03/04",
-    requester: "אל\"ם איתן רוזן",
     status: "completed",
     priority: "high",
     scheduledAt: ISO(-12 * DAY),
-    durationMinutes: 60,
     participantIds: ["p-eitan", "p-noa", "p-yair", "p-ronit"],
     leaderId: "p-eitan",
     requiresSummary: true,
@@ -394,12 +386,10 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   },
   {
     id: id(),
-    name: "ישיבת רס\"רים",
-    requester: "סא\"ל קרן שמש",
+    name: 'ישיבת רס"רים',
     status: "completed",
     priority: "normal",
     scheduledAt: ISO(-9 * DAY),
-    durationMinutes: 45,
     participantIds: ["p-keren", "p-shira", "p-ido"],
     leaderId: "p-keren",
     requiresSummary: false,
@@ -418,11 +408,9 @@ export const SEED_DISCUSSIONS: Discussion[] = [
   {
     id: id(),
     name: "סקירת תקלות תקשוב — מרץ",
-    requester: "רס\"ן דנה ברקת",
     status: "completed",
     priority: "normal",
     scheduledAt: ISO(-15 * DAY),
-    durationMinutes: 60,
     participantIds: ["p-dana", "p-hila"],
     leaderId: "p-dana",
     requiresSummary: true,

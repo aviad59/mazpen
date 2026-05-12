@@ -1,6 +1,7 @@
 /**
- * Global app store — a tiny custom store built on top of useSyncExternalStore.
- * Persists to IndexedDB and provides actions for discussion lifecycle changes.
+ * Global app store — a tiny custom store built on useSyncExternalStore.
+ * Persists to Supabase via @/lib/db and provides actions for
+ * discussion lifecycle changes.
  */
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
@@ -19,15 +20,22 @@ import {
   putParticipant as dbPutParticipant,
   resetAndReseed as dbReset,
 } from "@/lib/db";
+import { isBackendConfigured } from "@/lib/repo";
 import { uid } from "@/lib/utils";
 
 interface State {
   loaded: boolean;
+  error: string | null;
   discussions: Discussion[];
   participants: Participant[];
 }
 
-let state: State = { loaded: false, discussions: [], participants: [] };
+let state: State = {
+  loaded: false,
+  error: null,
+  discussions: [],
+  participants: [],
+};
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -40,14 +48,28 @@ function setState(updater: (prev: State) => State) {
 }
 
 async function load() {
-  const [discussions, participants] = await Promise.all([
-    listDiscussions(),
-    listParticipants(),
-  ]);
-  setState(() => ({ loaded: true, discussions, participants }));
+  if (!isBackendConfigured) {
+    setState(() => ({
+      loaded: false,
+      error:
+        "Supabase לא הוגדר. הוסף VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY לקובץ .env והפעל מחדש.",
+      discussions: [],
+      participants: [],
+    }));
+    return;
+  }
+  try {
+    const [discussions, participants] = await Promise.all([
+      listDiscussions(),
+      listParticipants(),
+    ]);
+    setState(() => ({ loaded: true, error: null, discussions, participants }));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    setState((p) => ({ ...p, loaded: false, error: msg }));
+  }
 }
 
-// kick off load once on first import
 void load();
 
 function subscribe(cb: () => void) {
@@ -61,7 +83,11 @@ function getSnapshot() {
 
 // ----- actions ---------------------------------------------------------
 
-function buildEvent(kind: HistoryKind, text: string, meta?: Record<string, unknown>): HistoryEvent {
+function buildEvent(
+  kind: HistoryKind,
+  text: string,
+  meta?: Record<string, unknown>
+): HistoryEvent {
   return {
     id: uid("h-"),
     kind,
@@ -91,7 +117,6 @@ async function upsert(discussion: Discussion, event?: HistoryEvent) {
 
 export type CreateDiscussionInput = {
   name: string;
-  requester: string;
   scheduledAt?: string | null;
   participantIds?: string[];
   leaderId?: string | null;
@@ -108,7 +133,6 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
-    requester: input.requester.trim(),
     status: input.scheduledAt ? "scheduled" : "requires_scheduling",
     priority: input.priority ?? "normal",
     scheduledAt: input.scheduledAt ?? null,
@@ -202,7 +226,6 @@ async function reseed() {
   await load();
 }
 
-// minimal label dictionary local to keep this module self-contained
 function statusLabelFor(s: DiscussionStatus): string {
   return (
     {
@@ -236,6 +259,7 @@ export function useStore() {
 
   return {
     loaded: snap.loaded,
+    error: snap.error,
     discussions: snap.discussions,
     participants: snap.participants,
     lookupParticipant,
@@ -247,5 +271,6 @@ export function useStore() {
     addParticipant,
     addNote,
     reseed,
+    reload: load,
   };
 }

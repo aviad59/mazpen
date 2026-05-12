@@ -14,7 +14,7 @@ export function uid(prefix = ""): string {
   );
 }
 
-/** Format an ISO date string into Hebrew. */
+/** Format an ISO date into a Hebrew date label (no time). */
 export function formatHebrewDate(iso: string | undefined | null): string {
   if (!iso) return "לא נקבע";
   const d = new Date(iso);
@@ -29,21 +29,14 @@ export function formatHebrewDate(iso: string | undefined | null): string {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
-  const time = d.toLocaleTimeString("he-IL", {
-    hour: "2-digit",
-    minute: "2-digit",
+  if (sameDay(d, today)) return "היום";
+  if (sameDay(d, tomorrow)) return "מחר";
+
+  return d.toLocaleDateString("he-IL", {
+    day: "numeric",
+    month: "numeric",
+    weekday: "long",
   });
-
-  if (sameDay(d, today)) return `היום · ${time}`;
-  if (sameDay(d, tomorrow)) return `מחר · ${time}`;
-
-  return (
-    d.toLocaleDateString("he-IL", {
-      day: "numeric",
-      month: "numeric",
-      weekday: "short",
-    }) + ` · ${time}`
-  );
 }
 
 /** Return a relative-time phrase in Hebrew. */

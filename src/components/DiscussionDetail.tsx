@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Calendar as CalIcon,
   CheckCircle2,
+  ChevronLeft,
   ChevronRight,
   Clock,
   Copy,
@@ -11,6 +12,7 @@ import {
   Send,
   Sparkles,
   Trash2,
+  Undo2,
   User,
   Users,
 } from "lucide-react";
@@ -20,15 +22,13 @@ import { Input, Textarea, Label } from "./ui/Input";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Avatar } from "./ui/Avatar";
-import { Chip } from "./ui/Chip";
-import { Select } from "./ui/Select";
-import { ParticipantPicker } from "./ParticipantPicker";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
+import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
-import { PRIORITY_LABEL, STATUS_LABEL, T } from "@/lib/he";
+import { STATUS_LABEL, T } from "@/lib/he";
 import { cn, formatHebrewDate } from "@/lib/utils";
-import type { Discussion, DiscussionStatus, Priority } from "@/types";
+import type { Discussion, DiscussionStatus } from "@/types";
 
 interface Props {
   open: boolean;
@@ -37,12 +37,10 @@ interface Props {
   onDuplicate?: (template: Discussion) => void;
 }
 
+/** Forward action map: status → next-step button(s). */
 const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
   requires_scheduling: [{ label: T.markOccurred, to: "occurred" }],
-  scheduled: [
-    { label: T.markOccurred, to: "occurred" },
-    { label: T.reschedule, to: "requires_scheduling" },
-  ],
+  scheduled: [{ label: T.markOccurred, to: "occurred" }],
   occurred: [{ label: T.startSummary, to: "waiting_summary" }],
   waiting_summary: [{ label: "סיכום נכתב — לאישור", to: "waiting_approval" }],
   waiting_approval: [{ label: T.approveSummary, to: "waiting_distribution" }],
@@ -51,11 +49,32 @@ const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStat
   cancelled: [],
 };
 
+/** Reverse action map: status → previous logical step. */
+const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
+  requires_scheduling: null,
+  scheduled: "requires_scheduling",
+  occurred: "scheduled",
+  waiting_summary: "occurred",
+  waiting_approval: "waiting_summary",
+  waiting_distribution: "waiting_approval",
+  completed: "waiting_distribution",
+  cancelled: null,
+};
+
+const EMPTY_EDIT: EditState = {
+  name: "",
+  requester: "",
+  notes: "",
+  summary: "",
+  scheduledAt: null,
+  participantIds: [],
+  leaderId: "",
+  priority: "normal",
+};
+
 export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Props) {
   const {
-    participants,
     lookupParticipant,
-    addParticipant,
     updateDiscussion,
     changeStatus,
     rescheduleDiscussion,
@@ -64,74 +83,49 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   } = useStore();
 
   const [editing, setEditing] = React.useState(false);
-  const [name, setName] = React.useState("");
-  const [requester, setRequester] = React.useState("");
-  const [notes, setNotes] = React.useState("");
-  const [summary, setSummary] = React.useState("");
-  const [date, setDate] = React.useState("");
-  const [time, setTime] = React.useState("");
-  const [participantIds, setParticipantIds] = React.useState<string[]>([]);
-  const [leaderId, setLeaderId] = React.useState("");
-  const [priority, setPriority] = React.useState<Priority>("normal");
+  const [edit, setEdit] = React.useState<EditState>(EMPTY_EDIT);
   const [note, setNote] = React.useState("");
+  const [draftSummary, setDraftSummary] = React.useState("");
 
-  // Re-hydrate state when discussion changes
+  // Re-hydrate edit state when the discussion changes.
   React.useEffect(() => {
     if (!discussion) return;
-    setName(discussion.name);
-    setRequester(discussion.requester);
-    setNotes(discussion.notes ?? "");
-    setSummary(discussion.summary ?? "");
-    if (discussion.scheduledAt) {
-      const d = new Date(discussion.scheduledAt);
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
-      setTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
-    } else {
-      setDate("");
-      setTime("");
-    }
-    setParticipantIds(discussion.participantIds);
-    setLeaderId(discussion.leaderId ?? "");
-    setPriority(discussion.priority);
+    setEdit({
+      name: discussion.name,
+      requester: discussion.requester,
+      notes: discussion.notes ?? "",
+      summary: discussion.summary ?? "",
+      scheduledAt: discussion.scheduledAt,
+      participantIds: discussion.participantIds,
+      leaderId: discussion.leaderId ?? "",
+      priority: discussion.priority,
+    });
     setEditing(false);
     setNote("");
+    setDraftSummary("");
   }, [discussion]);
 
   if (!discussion) return null;
-
   const d = discussion;
   const unscheduled = !d.scheduledAt;
   const nextActions = NEXT_ACTIONS[d.status] ?? [];
+  const prevStatus = PREV_STATUS[d.status];
 
   async function persistEdits() {
     if (!d) return;
-    let scheduledAt: string | null = d.scheduledAt;
-    if (date) {
-      const iso = `${date}T${time || "09:00"}:00`;
-      const parsed = new Date(iso);
-      scheduledAt = Number.isNaN(parsed.getTime()) ? d.scheduledAt : parsed.toISOString();
-    } else if (!date && d.scheduledAt) {
-      scheduledAt = null;
-    }
-
     const patch: Partial<Discussion> = {
-      name: name.trim(),
-      requester: requester.trim(),
-      notes: notes.trim() || undefined,
-      summary: summary.trim() || undefined,
-      participantIds,
-      leaderId: leaderId || null,
-      priority,
+      name: edit.name.trim(),
+      requester: edit.requester.trim(),
+      notes: edit.notes.trim() || undefined,
+      summary: edit.summary.trim() || undefined,
+      participantIds: edit.participantIds,
+      leaderId: edit.leaderId || null,
+      priority: edit.priority,
     };
-
-    // If scheduledAt changed, use reschedule (which adds a history event)
-    if (scheduledAt !== d.scheduledAt) {
-      await rescheduleDiscussion(d.id, scheduledAt);
-      await updateDiscussion(d.id, patch, { kind: "note", text: "פרטי הדיון עודכנו" });
-    } else {
-      await updateDiscussion(d.id, patch, { kind: "note", text: "פרטי הדיון עודכנו" });
+    if (edit.scheduledAt !== d.scheduledAt) {
+      await rescheduleDiscussion(d.id, edit.scheduledAt);
     }
+    await updateDiscussion(d.id, patch, { kind: "note", text: "פרטי הדיון עודכנו" });
     setEditing(false);
   }
 
@@ -147,16 +141,59 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     onClose();
   }
 
+  async function handleSaveSummary() {
+    if (!draftSummary.trim()) return;
+    await updateDiscussion(
+      d.id,
+      {
+        summary: draftSummary.trim(),
+        status: d.requiresApproval ? "waiting_approval" : "waiting_distribution",
+      },
+      { kind: "summary_changed", text: "סיכום נכתב" }
+    );
+    setDraftSummary("");
+  }
+
+  const footer = !editing ? (
+    <div className="flex gap-2">
+      <Button variant="outline" size="md" onClick={() => setEditing(true)} className="flex-1">
+        {T.edit}
+      </Button>
+      {onDuplicate && (
+        <Button variant="ghost" size="icon" onClick={() => onDuplicate(d)} title="שכפל דיון">
+          <Copy size={16} />
+        </Button>
+      )}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleDelete}
+        title={T.delete}
+        className="text-destructive"
+      >
+        <Trash2 size={16} />
+      </Button>
+    </div>
+  ) : (
+    <div className="flex gap-2">
+      <Button variant="ghost" size="md" onClick={() => setEditing(false)} className="flex-1">
+        {T.cancel}
+      </Button>
+      <Button size="md" onClick={persistEdits} className="flex-[2]">
+        {T.save}
+      </Button>
+    </div>
+  );
+
+  const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+
   return (
     <Sheet
       open={open}
       onClose={onClose}
       size="full"
-      title={
-        <span className="flex items-center gap-2">
-          <span className="truncate">{editing ? "עריכת דיון" : d.name}</span>
-        </span>
-      }
+      title={<span className="truncate">{editing ? "עריכת דיון" : d.name}</span>}
+      footer={footer}
     >
       <div className="space-y-5">
         {/* Status / priority row */}
@@ -168,7 +205,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           {d.requiresDistribution && <Badge tone="muted">דורש הפצה</Badge>}
         </div>
 
-        {/* Date display */}
+        {/* Date / requester / leader */}
         <Card className="p-4">
           <div className="flex items-center gap-2 text-sm">
             <CalIcon
@@ -183,28 +220,23 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
             >
               {unscheduled ? T.notScheduled : formatHebrewDate(d.scheduledAt)}
             </span>
-            {d.durationMinutes && (
-              <span className="text-xs text-muted-foreground">
-                · {d.durationMinutes} ד'
-              </span>
-            )}
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm">
             <User size={14} className="text-muted-foreground" />
             <span className="text-muted-foreground">דורש:</span>
             <span className="font-medium">{d.requester}</span>
           </div>
-          {d.leaderId && lookupParticipant(d.leaderId) && (
+          {leader && (
             <div className="mt-1 flex items-center gap-2 text-sm">
               <Sparkles size={14} className="text-muted-foreground" />
               <span className="text-muted-foreground">מוביל:</span>
-              <span className="font-medium">{lookupParticipant(d.leaderId)?.name}</span>
+              <span className="font-medium">{leader.name}</span>
             </div>
           )}
         </Card>
 
-        {/* Quick next actions */}
-        {nextActions.length > 0 && !editing && (
+        {/* Quick actions (view mode only) */}
+        {!editing && (nextActions.length > 0 || prevStatus) && (
           <div>
             <Label>פעולות מהירות</Label>
             <div className="flex flex-wrap gap-2">
@@ -217,14 +249,35 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                 >
                   <CheckCircle2 size={14} />
                   {a.label}
-                  <ChevronRight size={14} />
+                  <ChevronLeft size={14} />
                 </Button>
               ))}
+              {prevStatus && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => changeStatus(d.id, prevStatus)}
+                  title={`חזרה ל"${STATUS_LABEL[prevStatus]}"`}
+                >
+                  <Undo2 size={14} />
+                  חזרה ל{STATUS_LABEL[prevStatus]}
+                </Button>
+              )}
+              {d.status === "scheduled" && d.scheduledAt && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => rescheduleDiscussion(d.id, null)}
+                >
+                  <ChevronRight size={14} />
+                  תזמן מחדש
+                </Button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Participants */}
+        {/* Participants list (view) */}
         {!editing && (
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -266,7 +319,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Notes */}
+        {/* Notes (view) */}
         {!editing && d.notes && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -276,7 +329,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Summary */}
+        {/* Summary (view) */}
         {!editing && d.requiresSummary && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -289,21 +342,11 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                 <p className="text-xs text-muted-foreground">טרם נכתב סיכום.</p>
                 <Textarea
                   placeholder={T.writeSummary}
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
+                  value={draftSummary}
+                  onChange={(e) => setDraftSummary(e.target.value)}
                   rows={4}
                 />
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    if (!summary.trim()) return;
-                    await updateDiscussion(
-                      d.id,
-                      { summary: summary.trim(), status: d.requiresApproval ? "waiting_approval" : "waiting_distribution" },
-                      { kind: "summary_changed", text: "סיכום נכתב" }
-                    );
-                  }}
-                >
+                <Button size="sm" onClick={handleSaveSummary} disabled={!draftSummary.trim()}>
                   שמור סיכום והתקדם
                 </Button>
               </div>
@@ -311,7 +354,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Attachments */}
+        {/* Attachments (view) */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -325,9 +368,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                   <li key={a.id} className="flex items-center gap-2 text-sm">
                     <Paperclip size={12} className="text-muted-foreground" />
                     <span className="truncate">{a.name}</span>
-                    <Badge tone="muted" className="ms-auto">
-                      {a.kind}
-                    </Badge>
+                    <Badge tone="muted" className="ms-auto">{a.kind}</Badge>
                   </li>
                 ))}
               </ul>
@@ -335,7 +376,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Add note */}
+        {/* Quick add-note (view) */}
         {!editing && (
           <Card className="p-4">
             <Label>הוסף הערה / עדכון</Label>
@@ -358,7 +399,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* History */}
+        {/* History (view) */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3">
@@ -370,153 +411,12 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
         {/* EDIT mode */}
         {editing && (
-          <div className="space-y-4">
-            <div>
-              <Label>שם הדיון</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <Label>{T.requester}</Label>
-              <Input
-                value={requester}
-                onChange={(e) => setRequester(e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>{T.date}</Label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>{T.time}</Label>
-                <Input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  disabled={!date}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>{T.priority}</Label>
-              <div className="flex gap-2">
-                {(["normal", "high", "urgent"] as Priority[]).map((p) => (
-                  <Chip
-                    key={p}
-                    active={priority === p}
-                    onClick={() => setPriority(p)}
-                    size="sm"
-                  >
-                    {PRIORITY_LABEL[p]}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label>{T.participants}</Label>
-              <ParticipantPicker
-                participants={participants}
-                value={participantIds}
-                onChange={setParticipantIds}
-                onCreate={addParticipant}
-              />
-            </div>
-
-            {participantIds.length > 0 && (
-              <div>
-                <Label>{T.leader}</Label>
-                <Select
-                  value={leaderId}
-                  onChange={(e) => setLeaderId(e.target.value)}
-                  options={[
-                    { value: "", label: "ללא מוביל" },
-                    ...participantIds
-                      .map((id) => participants.find((p) => p.id === id))
-                      .filter((p): p is NonNullable<typeof p> => !!p)
-                      .map((p) => ({ value: p.id, label: p.name })),
-                  ]}
-                />
-              </div>
-            )}
-
-            <div>
-              <Label>{T.notes}</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <Label>{T.summary}</Label>
-              <Textarea
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                placeholder={T.writeSummary}
-                rows={5}
-              />
-            </div>
-
-            {/* Status quick switch (edit only) */}
-            <div>
-              <Label>סטטוס</Label>
-              <Select
-                value={d.status}
-                onChange={(e) => changeStatus(d.id, e.target.value as DiscussionStatus)}
-                options={(Object.keys(STATUS_LABEL) as DiscussionStatus[])
-                  .filter((s) => s !== "cancelled")
-                  .map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
-              />
-            </div>
-          </div>
+          <DiscussionEditForm
+            discussion={d}
+            state={edit}
+            onChange={(patch) => setEdit((s) => ({ ...s, ...patch }))}
+          />
         )}
-
-        {/* Footer actions */}
-        <div className="sticky bottom-0 bg-background border-t border-border pt-3 pb-1 -mx-5 px-5 flex gap-2">
-          {!editing ? (
-            <>
-              <Button variant="outline" size="md" onClick={() => setEditing(true)} className="flex-1">
-                {T.edit}
-              </Button>
-              {onDuplicate && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDuplicate(d)}
-                  title="שכפל דיון"
-                >
-                  <Copy size={16} />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                title={T.delete}
-                className="text-destructive"
-              >
-                <Trash2 size={16} />
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="ghost" size="md" onClick={() => setEditing(false)} className="flex-1">
-                {T.cancel}
-              </Button>
-              <Button size="md" onClick={persistEdits} className="flex-[2]">
-                {T.save}
-              </Button>
-            </>
-          )}
-        </div>
       </div>
     </Sheet>
   );

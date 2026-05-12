@@ -69,7 +69,6 @@ export interface HistoryEvent {
 export interface Discussion {
   id: string;
   name: string;
-  requester: string; // who asked for the discussion (commander)
   status: DiscussionStatus;
   priority: Priority;
 

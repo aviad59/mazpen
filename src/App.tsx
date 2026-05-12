@@ -6,15 +6,21 @@ import { TopBar } from "./components/TopBar";
 import { BottomNav, type Tab } from "./components/BottomNav";
 import { QuickAddSheet } from "./components/QuickAddSheet";
 import { DiscussionDetail } from "./components/DiscussionDetail";
+import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { useStore } from "./store/useStore";
 import type { Discussion } from "./types";
 
 export default function App() {
-  const { discussions, reseed } = useStore();
+  const { discussions, error, reseed, reload } = useStore();
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
+
+  // Hard-stop screen: backend isn't configured / reachable
+  if (error) {
+    return <BackendErrorScreen error={error} onRetry={() => reload()} />;
+  }
 
   const openDiscussion = discussions.find((d) => d.id === openId) ?? null;
   const pendingScheduling = discussions.filter(
@@ -73,10 +79,7 @@ export default function App() {
       <QuickAddSheet
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        onCreated={(d) => {
-          // After create, open the detail to encourage filling extra info
-          setOpenId(d.id);
-        }}
+        onCreated={(d) => setOpenId(d.id)}
         template={template}
       />
 

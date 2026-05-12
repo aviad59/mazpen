@@ -6,6 +6,9 @@ import type { DashboardSection, DiscussionStatus, Priority } from "@/types";
 export const APP_NAME = "מצפן";
 export const APP_TAGLINE = "מעקב דיונים מבצעי";
 
+/** Home command name — participants with this unit are internal. */
+export const HOME_UNIT = "מצפן";
+
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {
   requires_scheduling: "ממתין לתיאום",
   scheduled: "מתוזמן",
@@ -51,7 +54,8 @@ export const T = {
   notScheduled: "לא נקבע מועד",
   participants: "משתתפים",
   leader: "מוביל הדיון",
-  requester: "מבקש הדיון",
+  externalUnits: "יחידות חיצוניות",
+  hasExternals: "כולל משתתפים חיצוניים",
   notes: "הערות / נושא",
   summary: "סיכום",
   attachments: "צרופות",

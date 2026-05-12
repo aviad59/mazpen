@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Sparkles, Calendar as CalIcon, Clock } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Button } from "./ui/Button";
@@ -7,6 +7,7 @@ import { Switch } from "./ui/Switch";
 import { Chip } from "./ui/Chip";
 import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
+import { DateQuickPicker } from "./DateQuickPicker";
 import { useStore } from "@/store/useStore";
 import { T, PRIORITY_LABEL } from "@/lib/he";
 import type { Discussion, Priority } from "@/types";
@@ -19,15 +20,18 @@ interface Props {
   template?: Partial<Discussion> | null;
 }
 
-const DEFAULT_REQUESTERS = ["אל\"ם אמיר כהן", "סא\"ל נועה לוי", "אל\"ם איתן רוזן", "סא\"ל קרן שמש"];
+const DEFAULT_REQUESTERS = [
+  'אל"ם אמיר כהן',
+  'סא"ל נועה לוי',
+  'אל"ם איתן רוזן',
+  'סא"ל קרן שמש',
+];
 
 export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const { participants, addParticipant, createDiscussion } = useStore();
 
   const [name, setName] = React.useState("");
-  const [requester, setRequester] = React.useState("");
-  const [date, setDate] = React.useState("");
-  const [time, setTime] = React.useState("");
+  const [scheduledAt, setScheduledAt] = React.useState<string | null>(null);
   const [participantIds, setParticipantIds] = React.useState<string[]>([]);
   const [leaderId, setLeaderId] = React.useState<string>("");
   const [priority, setPriority] = React.useState<Priority>("normal");
@@ -43,9 +47,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   React.useEffect(() => {
     if (!open) return;
     setName(template?.name ?? "");
-    setRequester(template?.requester ?? "");
-    setDate("");
-    setTime("");
+    setScheduledAt(null);
     setParticipantIds(template?.participantIds ?? []);
     setLeaderId(template?.leaderId ?? "");
     setPriority(template?.priority ?? "normal");
@@ -55,19 +57,10 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setNotes(template?.notes ?? "");
     setShowAdvanced(false);
 
-    // focus name field
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
-  const combinedDate = React.useMemo(() => {
-    if (!date) return null;
-    const iso = time ? `${date}T${time}:00` : `${date}T09:00:00`;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
-  }, [date, time]);
-
-  const canSubmit = name.trim() && requester.trim() && !submitting;
+  const canSubmit = name.trim() && !submitting;
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -76,8 +69,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     try {
       const created = await createDiscussion({
         name: name.trim(),
-        requester: requester.trim(),
-        scheduledAt: combinedDate,
+        scheduledAt,
         participantIds,
         leaderId: leaderId || null,
         priority,
@@ -110,6 +102,21 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           <Sparkles size={18} className="text-accent" />
           {T.newDiscussion}
         </span>
+      }
+      footer={
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
+            {T.cancel}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleSubmit()}
+            disabled={!canSubmit}
+            className="flex-[2]"
+          >
+            {submitting ? "שומר..." : T.create}
+          </Button>
+        </div>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -144,39 +151,16 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           </datalist>
         </div>
 
-        {/* Date + time */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label htmlFor="qa-date">
-              <CalIcon size={11} className="inline -mt-0.5 ml-1" />
-              {T.date} (אופציונלי)
-            </Label>
-            <Input
-              id="qa-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="qa-time">
-              <Clock size={11} className="inline -mt-0.5 ml-1" />
-              {T.time}
-            </Label>
-            <Input
-              id="qa-time"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              disabled={!date}
-            />
-          </div>
+        {/* Date — relative chips */}
+        <div>
+          <Label>מועד (אופציונלי)</Label>
+          <DateQuickPicker value={scheduledAt} onChange={setScheduledAt} />
+          {!scheduledAt && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              ניתן לשמור ללא תאריך — הדיון יופיע בסעיף "ממתינים לתיאום".
+            </p>
+          )}
         </div>
-        {!date && (
-          <p className="-mt-2 text-[11px] text-muted-foreground">
-            ניתן לשמור ללא תאריך — הדיון יופיע בסעיף "ממתינים לתיאום".
-          </p>
-        )}
 
         {/* Quick priority pills */}
         <div>
@@ -259,16 +243,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             </div>
           </div>
         )}
-
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 sticky bottom-0 bg-background pb-1">
-          <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
-            {T.cancel}
-          </Button>
-          <Button type="submit" disabled={!canSubmit} className="flex-[2]">
-            {submitting ? "שומר..." : T.create}
-          </Button>
-        </div>
       </form>
     </Sheet>
   );
