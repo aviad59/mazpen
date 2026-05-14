@@ -1,10 +1,9 @@
 import * as React from "react";
 import {
   Building2,
-  Calendar as CalIcon,
+  CalendarRange,
   CheckCircle2,
   ChevronLeft,
-  ChevronRight,
   Clock,
   Copy,
   FileText,
@@ -26,8 +25,8 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
-import { HOME_UNIT, STATUS_LABEL, T } from "@/lib/he";
-import { cn, formatHebrewDate } from "@/lib/utils";
+import { HOME_UNIT, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import { cn } from "@/lib/utils";
 import type { Discussion, DiscussionStatus } from "@/types";
 
 interface Props {
@@ -38,7 +37,6 @@ interface Props {
 }
 
 const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
-  requires_scheduling: [{ label: T.markOccurred, to: "occurred" }],
   scheduled: [{ label: T.markOccurred, to: "occurred" }],
   occurred: [{ label: T.startSummary, to: "waiting_summary" }],
   waiting_summary: [{ label: "סיכום נכתב — לאישור", to: "waiting_approval" }],
@@ -49,8 +47,7 @@ const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStat
 };
 
 const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
-  requires_scheduling: null,
-  scheduled: "requires_scheduling",
+  scheduled: null,
   occurred: "scheduled",
   waiting_summary: "occurred",
   waiting_approval: "waiting_summary",
@@ -63,7 +60,7 @@ const EMPTY_EDIT: EditState = {
   name: "",
   notes: "",
   summary: "",
-  scheduledAt: null,
+  dateWindow: "unspecified",
   participantIds: [],
   leaderId: "",
   priority: "normal",
@@ -74,7 +71,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     lookupParticipant,
     updateDiscussion,
     changeStatus,
-    rescheduleDiscussion,
+    setDateWindow,
     removeDiscussion,
     addNote,
   } = useStore();
@@ -90,7 +87,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       name: discussion.name,
       notes: discussion.notes ?? "",
       summary: discussion.summary ?? "",
-      scheduledAt: discussion.scheduledAt,
+      dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
       leaderId: discussion.leaderId ?? "",
       priority: discussion.priority,
@@ -102,7 +99,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
   if (!discussion) return null;
   const d = discussion;
-  const unscheduled = !d.scheduledAt;
   const nextActions = NEXT_ACTIONS[d.status] ?? [];
   const prevStatus = PREV_STATUS[d.status];
 
@@ -116,8 +112,8 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       leaderId: edit.leaderId || null,
       priority: edit.priority,
     };
-    if (edit.scheduledAt !== d.scheduledAt) {
-      await rescheduleDiscussion(d.id, edit.scheduledAt);
+    if (edit.dateWindow !== d.dateWindow) {
+      await setDateWindow(d.id, edit.dateWindow);
     }
     await updateDiscussion(d.id, patch, { kind: "note", text: "פרטי הדיון עודכנו" });
     setEditing(false);
@@ -139,11 +135,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     if (!draftSummary.trim()) return;
     await updateDiscussion(
       d.id,
-      {
-        summary: draftSummary.trim(),
-        // requires_summary == true always implies the approval+distribution flow.
-        status: "waiting_approval",
-      },
+      { summary: draftSummary.trim(), status: "waiting_approval" },
       { kind: "summary_changed", text: "סיכום נכתב" }
     );
     setDraftSummary("");
@@ -182,7 +174,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
 
-  // Distinct non-home units present among participants
   const externalUnitsList = Array.from(
     new Set(
       d.participantIds
@@ -200,28 +191,21 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       footer={footer}
     >
       <div className="space-y-5">
-        {/* Status / priority row */}
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={d.status} />
           <PriorityBadge priority={d.priority} />
           {d.requiresSummary && <Badge tone="muted">דורש סיכום + אישור + הפצה</Badge>}
         </div>
 
-        {/* Date / leader / external units */}
         <Card className="p-4">
-          <div className="flex items-center gap-2 text-sm">
-            <CalIcon
-              size={16}
-              className={cn(unscheduled ? "text-destructive" : "text-accent")}
-            />
-            <span
-              className={cn(
-                "font-medium",
-                unscheduled ? "text-destructive" : "text-foreground"
-              )}
-            >
-              {unscheduled ? T.notScheduled : formatHebrewDate(d.scheduledAt)}
-            </span>
+          <div
+            className={cn(
+              "flex items-center gap-2 text-sm font-medium",
+              d.dateWindow === "this_week" ? "text-accent" : "text-foreground"
+            )}
+          >
+            <CalendarRange size={16} />
+            <span>{WINDOW_LABEL[d.dateWindow]}</span>
           </div>
           {leader && (
             <div className="mt-2 flex items-center gap-2 text-sm">
@@ -241,7 +225,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           )}
         </Card>
 
-        {/* Quick actions */}
         {!editing && (nextActions.length > 0 || prevStatus) && (
           <div>
             <Label>פעולות מהירות</Label>
@@ -269,21 +252,10 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                   חזרה ל{STATUS_LABEL[prevStatus]}
                 </Button>
               )}
-              {d.status === "scheduled" && d.scheduledAt && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => rescheduleDiscussion(d.id, null)}
-                >
-                  <ChevronRight size={14} />
-                  תזמן מחדש
-                </Button>
-              )}
             </div>
           </div>
         )}
 
-        {/* Participants list */}
         {!editing && (
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
@@ -311,9 +283,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                           {p.id === d.leaderId && (
                             <Badge tone="accent">מוביל</Badge>
                           )}
-                          {isExternal && (
-                            <Badge tone="warning">חיצוני</Badge>
-                          )}
+                          {isExternal && <Badge tone="warning">חיצוני</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           {[p.role, p.unit].filter(Boolean).join(" · ")}
@@ -327,7 +297,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Notes */}
         {!editing && d.notes && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -337,7 +306,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Summary */}
         {!editing && d.requiresSummary && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -362,7 +330,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Attachments */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
@@ -384,7 +351,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* Add note */}
         {!editing && (
           <Card className="p-4">
             <Label>הוסף הערה / עדכון</Label>
@@ -407,7 +373,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* History */}
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3">
@@ -417,7 +382,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
           </Card>
         )}
 
-        {/* EDIT mode */}
         {editing && (
           <DiscussionEditForm
             discussion={d}

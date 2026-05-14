@@ -1,11 +1,19 @@
 import * as React from "react";
-import { AlertCircle, CalendarClock, CheckCircle2, FileText, Send, Stamp } from "lucide-react";
+import {
+  CalendarRange,
+  CheckCircle2,
+  Clock,
+  FileText,
+  HelpCircle,
+  Send,
+  Stamp,
+} from "lucide-react";
 import { DiscussionCard } from "./DiscussionCard";
 import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { useStore } from "@/store/useStore";
 import { SECTION_HINT, SECTION_LABEL, T } from "@/lib/he";
-import { byCreatedDesc, byDateAsc } from "@/lib/utils";
+import { byCreatedDesc } from "@/lib/utils";
 import type { DashboardSection, Discussion } from "@/types";
 
 interface Props {
@@ -13,8 +21,10 @@ interface Props {
 }
 
 const SECTION_ICON: Record<DashboardSection, React.ReactNode> = {
-  requires_scheduling: <AlertCircle size={28} />,
-  upcoming: <CalendarClock size={28} />,
+  this_week: <CalendarRange size={28} />,
+  next_week: <CalendarRange size={28} />,
+  unspecified: <HelpCircle size={28} />,
+  later: <Clock size={28} />,
   waiting_summary: <FileText size={28} />,
   waiting_approval: <Stamp size={28} />,
   waiting_distribution: <Send size={28} />,
@@ -23,8 +33,10 @@ const SECTION_ICON: Record<DashboardSection, React.ReactNode> = {
 
 function bucketize(discussions: Discussion[]) {
   const buckets: Record<DashboardSection, Discussion[]> = {
-    requires_scheduling: [],
-    upcoming: [],
+    this_week: [],
+    next_week: [],
+    unspecified: [],
+    later: [],
     waiting_summary: [],
     waiting_approval: [],
     waiting_distribution: [],
@@ -32,24 +44,48 @@ function bucketize(discussions: Discussion[]) {
   };
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
-    if (d.status === "requires_scheduling") buckets.requires_scheduling.push(d);
-    else if (d.status === "scheduled") buckets.upcoming.push(d);
-    else if (d.status === "occurred" || d.status === "waiting_summary")
+    if (d.status === "scheduled") {
+      // Scheduled discussions split by their date window
+      if (d.dateWindow === "this_week") buckets.this_week.push(d);
+      else if (d.dateWindow === "next_week") buckets.next_week.push(d);
+      else if (d.dateWindow === "later") buckets.later.push(d);
+      else buckets.unspecified.push(d);
+    } else if (d.status === "occurred" || d.status === "waiting_summary") {
       buckets.waiting_summary.push(d);
-    else if (d.status === "waiting_approval") buckets.waiting_approval.push(d);
-    else if (d.status === "waiting_distribution") buckets.waiting_distribution.push(d);
-    else if (d.status === "completed") buckets.completed.push(d);
+    } else if (d.status === "waiting_approval") {
+      buckets.waiting_approval.push(d);
+    } else if (d.status === "waiting_distribution") {
+      buckets.waiting_distribution.push(d);
+    } else if (d.status === "completed") {
+      buckets.completed.push(d);
+    }
   }
-  buckets.requires_scheduling.sort(byCreatedDesc);
-  buckets.upcoming.sort(byDateAsc);
+
+  // Sort each bucket
+  buckets.this_week.sort(byCreatedDesc);
+  buckets.next_week.sort(byCreatedDesc);
+  buckets.unspecified.sort(byCreatedDesc);
+  buckets.later.sort(byCreatedDesc);
   buckets.waiting_summary.sort(byCreatedDesc);
   buckets.waiting_approval.sort(byCreatedDesc);
   buckets.waiting_distribution.sort(byCreatedDesc);
-  buckets.completed.sort((a, b) =>
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  buckets.completed.sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
   return buckets;
 }
+
+/** Top-of-dashboard order — most operationally urgent first. */
+const SECTIONS: { key: DashboardSection; alert?: boolean; limit?: number }[] = [
+  { key: "this_week", alert: true },
+  { key: "next_week" },
+  { key: "unspecified" },
+  { key: "waiting_summary" },
+  { key: "waiting_approval" },
+  { key: "waiting_distribution" },
+  { key: "later" },
+  { key: "completed", limit: 5 },
+];
 
 export function Dashboard({ onOpenDiscussion }: Props) {
   const { discussions, lookupParticipant, loaded } = useStore();
@@ -58,10 +94,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   if (!loaded) {
     return (
       <div className="px-3 py-12">
-        <EmptyState
-          title="טוען נתונים..."
-          hint="מתחבר לשרת"
-        />
+        <EmptyState title="טוען נתונים..." hint="מתחבר לשרת" />
       </div>
     );
   }
@@ -72,7 +105,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
     return (
       <div className="px-3 py-12">
         <EmptyState
-          icon={<CalendarClock size={48} />}
+          icon={<CalendarRange size={48} />}
           title="הכל ריק"
           hint="הוסף דיון ראשון כדי להתחיל לעקוב."
         />
@@ -80,18 +113,9 @@ export function Dashboard({ onOpenDiscussion }: Props) {
     );
   }
 
-  const sections: { key: DashboardSection; alert?: boolean; limit?: number }[] = [
-    { key: "requires_scheduling", alert: true },
-    { key: "upcoming" },
-    { key: "waiting_summary" },
-    { key: "waiting_approval" },
-    { key: "waiting_distribution" },
-    { key: "completed", limit: 5 },
-  ];
-
   return (
     <div className="space-y-1 px-3 pb-24">
-      {sections.map(({ key, alert, limit }) => {
+      {SECTIONS.map(({ key, alert, limit }) => {
         const items = limit ? buckets[key].slice(0, limit) : buckets[key];
         return (
           <section key={key}>
@@ -115,7 +139,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                     discussion={d}
                     lookupParticipant={lookupParticipant}
                     onOpen={onOpenDiscussion}
-                    compact={key === "completed"}
+                    compact={key === "completed" || key === "later"}
                   />
                 ))}
               </div>

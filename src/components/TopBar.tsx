@@ -31,8 +31,8 @@ export function TopBar({
             <p className="text-[11px] text-muted-foreground truncate">
               {APP_TAGLINE}
               {pendingScheduling > 0 && (
-                <span className="ml-1 text-destructive font-medium">
-                  · {pendingScheduling} ממתינים לתיאום
+                <span className="ml-1 text-muted-foreground font-medium">
+                  · {pendingScheduling} ללא מסגרת זמן
                 </span>
               )}
             </p>

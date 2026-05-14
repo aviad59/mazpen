@@ -1,6 +1,6 @@
-import type { HistoryEvent } from "@/types";
+import type { HistoryEvent, HistoryKind } from "@/types";
 import {
-  Calendar,
+  CalendarRange,
   Edit3,
   FileText,
   MessageSquare,
@@ -8,19 +8,20 @@ import {
   Plus,
   RefreshCw,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { relativeTimeHe } from "@/lib/utils";
 
-const ICON_BY_KIND = {
+const ICON_BY_KIND: Record<HistoryKind, LucideIcon> = {
   created: Plus,
   status_changed: RefreshCw,
-  date_changed: Calendar,
+  window_changed: CalendarRange,
   participants_changed: Users,
   leader_changed: Users,
   summary_changed: FileText,
   note: MessageSquare,
   attachment_added: Paperclip,
-} as const;
+};
 
 export function ActivityTimeline({ history }: { history: HistoryEvent[] }) {
   const sorted = [...history].sort(
@@ -28,15 +29,13 @@ export function ActivityTimeline({ history }: { history: HistoryEvent[] }) {
   );
 
   if (sorted.length === 0) {
-    return (
-      <p className="text-xs text-muted-foreground">אין פעילות עדיין.</p>
-    );
+    return <p className="text-xs text-muted-foreground">אין פעילות עדיין.</p>;
   }
 
   return (
     <ol className="space-y-3 border-r-2 border-border pr-4 pt-1">
       {sorted.map((evt) => {
-        const Icon = ICON_BY_KIND[evt.kind] ?? Edit3;
+        const Icon: LucideIcon = ICON_BY_KIND[evt.kind] ?? Edit3;
         return (
           <li key={evt.id} className="relative">
             <span className="absolute -right-[1.4rem] top-1 flex h-5 w-5 items-center justify-center rounded-full bg-card border-2 border-border text-muted-foreground">

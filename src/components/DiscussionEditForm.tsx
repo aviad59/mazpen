@@ -1,18 +1,17 @@
-import * as React from "react";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Chip } from "./ui/Chip";
 import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
-import { DateQuickPicker } from "./DateQuickPicker";
+import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
 import { PRIORITY_LABEL, STATUS_LABEL, T } from "@/lib/he";
-import type { Discussion, DiscussionStatus, Priority } from "@/types";
+import type { DateWindow, Discussion, DiscussionStatus, Priority } from "@/types";
 
 export interface EditState {
   name: string;
   notes: string;
   summary: string;
-  scheduledAt: string | null;
+  dateWindow: DateWindow;
   participantIds: string[];
   leaderId: string;
   priority: Priority;
@@ -24,10 +23,6 @@ interface Props {
   onChange: (patch: Partial<EditState>) => void;
 }
 
-/**
- * Edit-mode form for the DiscussionDetail. Controlled by the parent —
- * `state` holds the in-progress edits; `onChange` merges patches.
- */
 export function DiscussionEditForm({ discussion, state, onChange }: Props) {
   const { participants, addParticipant, changeStatus } = useStore();
 
@@ -47,10 +42,10 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       </div>
 
       <div>
-        <Label>מועד</Label>
-        <DateQuickPicker
-          value={state.scheduledAt}
-          onChange={(v) => onChange({ scheduledAt: v })}
+        <Label>{T.window}</Label>
+        <DateWindowPicker
+          value={state.dateWindow}
+          onChange={(v) => onChange({ dateWindow: v })}
         />
       </div>
 

@@ -1,18 +1,12 @@
 /**
  * Supabase-backed Repository implementation.
  * Talks to Postgres tables `discussions` and `participants` over PostgREST.
- *
- * Schema is in `supabase/schema.sql`. Setup is documented in the README.
- *
- * Notes:
- *   - We convert between camelCase TS (Discussion, Participant) and
- *     snake_case Postgres columns at the adapter boundary.
- *   - On first connect we seed the DB if both tables are empty.
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Attachment,
+  DateWindow,
   Discussion,
   HistoryEvent,
   Participant,
@@ -28,8 +22,7 @@ interface DiscussionRow {
   name: string;
   status: DiscussionStatus;
   priority: Priority;
-  scheduled_at: string | null;
-  duration_minutes: number | null;
+  date_window: DateWindow;
   participant_ids: string[];
   extra_participants: string[] | null;
   leader_id: string | null;
@@ -56,8 +49,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     name: r.name,
     status: r.status,
     priority: r.priority,
-    scheduledAt: r.scheduled_at,
-    durationMinutes: r.duration_minutes ?? undefined,
+    dateWindow: r.date_window ?? "unspecified",
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
     leaderId: r.leader_id ?? null,
@@ -77,8 +69,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     name: d.name,
     status: d.status,
     priority: d.priority,
-    scheduled_at: d.scheduledAt,
-    duration_minutes: d.durationMinutes ?? null,
+    date_window: d.dateWindow,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
     leader_id: d.leaderId ?? null,
@@ -155,7 +146,6 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     },
 
     async reset() {
-      // Wipe both tables — DOES NOT re-seed.
       await client.from("discussions").delete().neq("id", "__noop__");
       await client.from("participants").delete().neq("id", "__noop__");
     },

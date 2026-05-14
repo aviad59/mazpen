@@ -5,6 +5,7 @@
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
 import type {
+  DateWindow,
   Discussion,
   DiscussionStatus,
   HistoryEvent,
@@ -21,6 +22,7 @@ import {
   putParticipant as dbPutParticipant,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
+import { WINDOW_LABEL } from "@/lib/he";
 import { uid } from "@/lib/utils";
 
 interface State {
@@ -117,13 +119,12 @@ async function upsert(discussion: Discussion, event?: HistoryEvent) {
 
 export type CreateDiscussionInput = {
   name: string;
-  scheduledAt?: string | null;
+  dateWindow?: DateWindow;
   participantIds?: string[];
   leaderId?: string | null;
   priority?: Discussion["priority"];
   requiresSummary?: boolean;
   notes?: string;
-  durationMinutes?: number;
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
@@ -131,10 +132,9 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
-    status: input.scheduledAt ? "scheduled" : "requires_scheduling",
+    status: "scheduled",
     priority: input.priority ?? "normal",
-    scheduledAt: input.scheduledAt ?? null,
-    durationMinutes: input.durationMinutes,
+    dateWindow: input.dateWindow ?? "this_week",
     participantIds: input.participantIds ?? [],
     leaderId: input.leaderId ?? null,
     requiresSummary: input.requiresSummary ?? true,
@@ -182,20 +182,16 @@ async function changeStatus(id: string, to: DiscussionStatus, by?: string) {
   );
 }
 
-async function rescheduleDiscussion(id: string, newDateIso: string | null) {
+async function setDateWindow(id: string, w: DateWindow) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current) return;
-  const patch: Partial<Discussion> = {
-    scheduledAt: newDateIso,
-    status: newDateIso ? "scheduled" : "requires_scheduling",
-  };
+  if (current.dateWindow === w) return;
   await upsert(
-    { ...current, ...patch },
-    buildEvent(
-      newDateIso ? "date_changed" : "status_changed",
-      newDateIso ? "נקבע מועד חדש" : "המועד הוסר — חזרה לתיאום",
-      { newDateIso }
-    )
+    { ...current, dateWindow: w },
+    buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, {
+      from: current.dateWindow,
+      to: w,
+    })
   );
 }
 
@@ -241,8 +237,7 @@ async function clearAll() {
 function statusLabelFor(s: DiscussionStatus): string {
   return (
     {
-      requires_scheduling: "ממתין לתיאום",
-      scheduled: "מתוזמן",
+      scheduled: "מתוכנן",
       occurred: "התקיים",
       waiting_summary: "ממתין לסיכום",
       waiting_approval: "ממתין לאישור",
@@ -278,7 +273,7 @@ export function useStore() {
     createDiscussion,
     updateDiscussion,
     changeStatus,
-    rescheduleDiscussion,
+    setDateWindow,
     removeDiscussion,
     addParticipant,
     updateParticipant,

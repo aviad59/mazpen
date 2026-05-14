@@ -1,21 +1,19 @@
-import { Building2, Calendar, FileText, Paperclip, AlertCircle } from "lucide-react";
+import { Building2, CalendarRange, FileText, Paperclip, AlertCircle } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
 import { PriorityBadge, StatusBadge } from "./StatusBadge";
-import { cn, formatHebrewDate, isSoon } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Discussion, Participant } from "@/types";
-import { HOME_UNIT, T } from "@/lib/he";
+import { HOME_UNIT, T, WINDOW_LABEL } from "@/lib/he";
 
 interface Props {
   discussion: Discussion;
   lookupParticipant: (id: string) => Participant | undefined;
   onOpen: (id: string) => void;
-  /** When true, render compact (less spacing). */
   compact?: boolean;
 }
 
-/** Distinct non-home units present among the discussion's participants. */
 function externalUnits(participants: Participant[]): string[] {
   const seen = new Set<string>();
   for (const p of participants) {
@@ -25,9 +23,8 @@ function externalUnits(participants: Participant[]): string[] {
 }
 
 export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact }: Props) {
-  const unscheduled = !d.scheduledAt;
   const urgent = d.priority === "urgent";
-  const soon = isSoon(d.scheduledAt);
+  const thisWeek = d.dateWindow === "this_week";
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
   const participants = d.participantIds
@@ -41,9 +38,8 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       onClick={() => onOpen(d.id)}
       className={cn(
         "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99] active:shadow-sm",
-        unscheduled && "ring-1 ring-destructive/30",
         urgent && "ring-1 ring-destructive/60",
-        soon && "ring-1 ring-accent/40",
+        thisWeek && !urgent && "ring-1 ring-accent/30",
         compact ? "p-3" : "p-4"
       )}
       role="button"
@@ -74,31 +70,18 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         </h3>
       </div>
 
-      {/* Date row */}
+      {/* Date window row */}
       <div
         className={cn(
-          "mt-2 flex items-center gap-1.5 text-sm",
-          unscheduled
-            ? "text-destructive font-medium"
-            : soon
-            ? "text-accent font-semibold"
-            : "text-foreground/80 font-medium"
+          "mt-2 flex items-center gap-1.5 text-sm font-medium",
+          thisWeek ? "text-accent" : "text-foreground/70"
         )}
       >
-        {unscheduled ? (
-          <>
-            <AlertCircle size={14} />
-            <span>{T.notScheduled}</span>
-          </>
-        ) : (
-          <>
-            <Calendar size={14} />
-            <span>{formatHebrewDate(d.scheduledAt)}</span>
-          </>
-        )}
+        <CalendarRange size={14} />
+        <span>{WINDOW_LABEL[d.dateWindow]}</span>
       </div>
 
-      {/* External units callout — operationally important: who's NOT from מצפן */}
+      {/* External units callout */}
       {ext.length > 0 && (
         <div className="mt-1.5 flex items-start gap-1 text-xs text-warning">
           <Building2 size={12} className="mt-[2px] shrink-0" />

@@ -1,7 +1,12 @@
 /**
  * Hebrew user-facing strings — all UI text lives here for easy maintenance.
  */
-import type { DashboardSection, DiscussionStatus, Priority } from "@/types";
+import type {
+  DashboardSection,
+  DateWindow,
+  DiscussionStatus,
+  Priority,
+} from "@/types";
 
 export const APP_NAME = "מצפן";
 export const APP_TAGLINE = "מעקב דיונים מבצעי";
@@ -10,8 +15,7 @@ export const APP_TAGLINE = "מעקב דיונים מבצעי";
 export const HOME_UNIT = "מצפן";
 
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {
-  requires_scheduling: "ממתין לתיאום",
-  scheduled: "מתוזמן",
+  scheduled: "מתוכנן",
   occurred: "התקיים",
   waiting_summary: "ממתין לסיכום",
   waiting_approval: "ממתין לאישור",
@@ -26,9 +30,18 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
   urgent: "דחוף",
 };
 
+export const WINDOW_LABEL: Record<DateWindow, string> = {
+  this_week: "השבוע",
+  next_week: "שבוע הבא",
+  later: "מאוחר יותר",
+  unspecified: "לא קבוע",
+};
+
 export const SECTION_LABEL: Record<DashboardSection, string> = {
-  requires_scheduling: "ממתינים לתיאום",
-  upcoming: "דיונים קרובים",
+  this_week: "השבוע",
+  next_week: "שבוע הבא",
+  unspecified: "לא קבוע",
+  later: "מאוחר יותר",
   waiting_summary: "ממתינים לסיכום",
   waiting_approval: "ממתינים לאישור",
   waiting_distribution: "ממתינים להפצה",
@@ -36,8 +49,10 @@ export const SECTION_LABEL: Record<DashboardSection, string> = {
 };
 
 export const SECTION_HINT: Record<DashboardSection, string> = {
-  requires_scheduling: "חשוב לא לפספס — דיונים בלי תאריך",
-  upcoming: "מה צפוי השבוע",
+  this_week: "דיונים שצריכים להתקיים השבוע",
+  next_week: "מה צפוי בשבוע הבא",
+  unspecified: "טרם הוחלט מתי",
+  later: "מעבר לשבוע הבא",
   waiting_summary: "כתיבת סיכום על-ידי מוביל הדיון",
   waiting_approval: "סיכומים שממתינים לאישור מפקד",
   waiting_distribution: "סיכומים מאושרים — להפיץ לנמענים",
@@ -51,7 +66,6 @@ export const T = {
   filters: "סינון",
   noResults: "לא נמצאו דיונים",
   noResultsHint: "נסה לשנות מסננים או להוסיף דיון חדש",
-  notScheduled: "לא נקבע מועד",
   participants: "משתתפים",
   leader: "מוביל הדיון",
   externalUnits: "יחידות חיצוניות",
@@ -66,23 +80,23 @@ export const T = {
   delete: "מחיקה",
   edit: "עריכה",
   back: "חזרה",
-  setDate: "קביעת מועד",
+  window: "מסגרת זמן",
   markOccurred: "סמן כהתקיים",
   startSummary: "התחל סיכום",
   approveSummary: "אשר סיכום",
   markDistributed: "סמן כהופץ",
-  reschedule: "תזמן מחדש",
   addParticipant: "הוסף משתתף",
   selectLeader: "בחר מוביל",
-  date: "תאריך",
   priority: "עדיפות",
   requiresSummary: "דורש סיכום (כולל אישור והפצה)",
   writeSummary: "כתוב סיכום...",
   addNote: "הוסף הערה...",
   addAttachment: "הוסף צרופה",
   empty: {
-    requires_scheduling: "אין דיונים שממתינים לתיאום",
-    upcoming: "אין דיונים קרובים",
+    this_week: "אין דיונים השבוע",
+    next_week: "אין דיונים בשבוע הבא",
+    unspecified: "אין דיונים ללא מסגרת זמן",
+    later: "אין דיונים בהמשך",
     waiting_summary: "אין סיכומים פתוחים",
     waiting_approval: "אין סיכומים לאישור",
     waiting_distribution: "אין סיכומים להפצה",

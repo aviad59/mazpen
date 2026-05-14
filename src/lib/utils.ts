@@ -16,9 +16,9 @@ export function uid(prefix = ""): string {
 
 /** Format an ISO date into a Hebrew date label (no time). */
 export function formatHebrewDate(iso: string | undefined | null): string {
-  if (!iso) return "לא נקבע";
+  if (!iso) return "—";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "לא נקבע";
+  if (Number.isNaN(d.getTime())) return "—";
 
   const today = new Date();
   const tomorrow = new Date();
@@ -55,25 +55,6 @@ export function relativeTimeHe(iso: string): string {
   if (diffHr < 0 && diffHr > -24) return `לפני ${-diffHr} שע'`;
   if (diffDay > 0) return `בעוד ${diffDay} ימים`;
   return `לפני ${-diffDay} ימים`;
-}
-
-/** Check if a discussion date is "soon" (next 24h) — used for urgency tint. */
-export function isSoon(iso: string | undefined | null): boolean {
-  if (!iso) return false;
-  const target = new Date(iso).getTime();
-  const diff = target - Date.now();
-  return diff > 0 && diff < 24 * 60 * 60 * 1000;
-}
-
-/** Sort by date ascending, undefined goes last. */
-export function byDateAsc<T extends { scheduledAt?: string | null }>(
-  a: T,
-  b: T
-) {
-  if (!a.scheduledAt && !b.scheduledAt) return 0;
-  if (!a.scheduledAt) return 1;
-  if (!b.scheduledAt) return -1;
-  return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
 }
 
 /** Sort by createdAt descending. */

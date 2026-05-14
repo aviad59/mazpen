@@ -3,7 +3,6 @@ import type { DiscussionStatus, Priority } from "@/types";
 import { PRIORITY_LABEL, STATUS_LABEL } from "@/lib/he";
 
 const STATUS_TONE: Record<DiscussionStatus, Parameters<typeof Badge>[0]["tone"]> = {
-  requires_scheduling: "danger",
   scheduled: "info",
   occurred: "muted",
   waiting_summary: "warning",

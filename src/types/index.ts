@@ -2,8 +2,16 @@
  * Core domain types for Matzpen Commander.
  */
 
+/**
+ * Coarse scheduling window — the secretary picks a bucket, not a specific day.
+ *  - this_week: should happen this calendar week
+ *  - next_week: should happen next calendar week
+ *  - later:     beyond next week
+ *  - unspecified: not yet known / no urgency
+ */
+export type DateWindow = "this_week" | "next_week" | "later" | "unspecified";
+
 export type DiscussionStatus =
-  | "requires_scheduling"
   | "scheduled"
   | "occurred"
   | "waiting_summary"
@@ -12,9 +20,12 @@ export type DiscussionStatus =
   | "completed"
   | "cancelled";
 
+/** Dashboard section keys — a mix of window buckets and post-meeting buckets. */
 export type DashboardSection =
-  | "requires_scheduling"
-  | "upcoming"
+  | "this_week"
+  | "next_week"
+  | "unspecified"
+  | "later"
   | "waiting_summary"
   | "waiting_approval"
   | "waiting_distribution"
@@ -25,8 +36,9 @@ export type Priority = "normal" | "high" | "urgent";
 export interface Participant {
   id: string;
   name: string;
-  /** Rank / role string e.g. 'אל"ם · ראש מבצעים'. Optional. */
+  /** Title / role string e.g. 'אל"ם · ראש מבצעים'. */
   role?: string;
+  /** Unit the participant belongs to. "מצפן" = home (internal). */
   unit?: string;
   external?: boolean;
 }
@@ -42,7 +54,7 @@ export interface Attachment {
 export type HistoryKind =
   | "created"
   | "status_changed"
-  | "date_changed"
+  | "window_changed"
   | "participants_changed"
   | "leader_changed"
   | "summary_changed"
@@ -64,8 +76,8 @@ export interface Discussion {
   status: DiscussionStatus;
   priority: Priority;
 
-  scheduledAt: string | null;
-  durationMinutes?: number;
+  /** When the discussion should happen — coarse bucket, not a specific date. */
+  dateWindow: DateWindow;
 
   participantIds: string[];
   extraParticipants?: string[];
@@ -88,14 +100,3 @@ export interface Discussion {
   createdAt: string;
   updatedAt: string;
 }
-
-export const STATUS_TO_SECTION: Record<DiscussionStatus, DashboardSection | "hidden"> = {
-  requires_scheduling: "requires_scheduling",
-  scheduled: "upcoming",
-  occurred: "waiting_summary",
-  waiting_summary: "waiting_summary",
-  waiting_approval: "waiting_approval",
-  waiting_distribution: "waiting_distribution",
-  completed: "completed",
-  cancelled: "hidden",
-};

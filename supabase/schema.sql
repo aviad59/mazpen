@@ -17,8 +17,7 @@ create table if not exists public.discussions (
   name                    text not null,
   status                  text not null,
   priority                text not null default 'normal',
-  scheduled_at            timestamptz,
-  duration_minutes        int,
+  date_window             text not null default 'unspecified',
   participant_ids         text[] not null default array[]::text[],
   extra_participants      text[],
   leader_id               text,
@@ -31,18 +30,12 @@ create table if not exists public.discussions (
   updated_at              timestamptz not null
 );
 
-create index if not exists discussions_status_idx       on public.discussions (status);
-create index if not exists discussions_scheduled_at_idx on public.discussions (scheduled_at);
+create index if not exists discussions_status_idx      on public.discussions (status);
+create index if not exists discussions_date_window_idx on public.discussions (date_window);
 
 -- ------------------------------------------------------------
 -- Row Level Security
 -- ------------------------------------------------------------
--- The policies below are PERMISSIVE — anyone with the anon key
--- can read/write. That is fine for a closed-network deployment
--- behind a VPN, but if you expose this to the public internet,
--- replace with auth-gated policies and use Supabase auth.
--- ------------------------------------------------------------
-
 alter table public.participants enable row level security;
 alter table public.discussions  enable row level security;
 

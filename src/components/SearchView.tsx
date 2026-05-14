@@ -6,26 +6,33 @@ import { EmptyState } from "./ui/EmptyState";
 import { Button } from "./ui/Button";
 import { DiscussionCard } from "./DiscussionCard";
 import { useStore } from "@/store/useStore";
-import { STATUS_LABEL, T } from "@/lib/he";
-import { byDateAsc } from "@/lib/utils";
-import type { Discussion, DiscussionStatus } from "@/types";
+import { STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import type { DateWindow, Discussion, DiscussionStatus } from "@/types";
 
 type Quick =
   | "all"
-  | "unscheduled"
-  | "waiting_summary"
-  | "waiting_approval"
-  | "waiting_distribution"
-  | "completed";
+  | DateWindow
+  | DiscussionStatus;
 
-const QUICK_LABEL: Record<Quick, string> = {
-  all: "הכל",
-  unscheduled: "ללא תאריך",
-  waiting_summary: STATUS_LABEL.waiting_summary,
-  waiting_approval: STATUS_LABEL.waiting_approval,
-  waiting_distribution: STATUS_LABEL.waiting_distribution,
-  completed: STATUS_LABEL.completed,
-};
+const QUICK_OPTIONS: { key: Quick; label: string }[] = [
+  { key: "all", label: "הכל" },
+  { key: "this_week", label: WINDOW_LABEL.this_week },
+  { key: "next_week", label: WINDOW_LABEL.next_week },
+  { key: "later", label: WINDOW_LABEL.later },
+  { key: "unspecified", label: WINDOW_LABEL.unspecified },
+  { key: "waiting_summary", label: STATUS_LABEL.waiting_summary },
+  { key: "waiting_approval", label: STATUS_LABEL.waiting_approval },
+  { key: "waiting_distribution", label: STATUS_LABEL.waiting_distribution },
+  { key: "completed", label: STATUS_LABEL.completed },
+];
+
+const WINDOW_KEYS = new Set<Quick>(["this_week", "next_week", "later", "unspecified"]);
+const STATUS_KEYS = new Set<Quick>([
+  "waiting_summary",
+  "waiting_approval",
+  "waiting_distribution",
+  "completed",
+]);
 
 interface Props {
   onOpenDiscussion: (id: string) => void;
@@ -39,45 +46,42 @@ export function SearchView({ onOpenDiscussion }: Props) {
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    return discussions
-      .filter((d) => {
-        if (d.status === "cancelled") return false;
+    return discussions.filter((d) => {
+      if (d.status === "cancelled") return false;
 
-        if (quick === "unscheduled") {
-          if (d.scheduledAt) return false;
-        } else if (quick !== "all") {
-          if (d.status !== (quick as DiscussionStatus)) return false;
-        }
+      if (WINDOW_KEYS.has(quick)) {
+        if (d.status !== "scheduled" || d.dateWindow !== (quick as DateWindow))
+          return false;
+      } else if (STATUS_KEYS.has(quick)) {
+        if (d.status !== (quick as DiscussionStatus)) return false;
+      }
 
-        if (participantId) {
-          if (
-            !d.participantIds.includes(participantId) &&
-            d.leaderId !== participantId
-          )
-            return false;
-        }
+      if (participantId) {
+        if (
+          !d.participantIds.includes(participantId) &&
+          d.leaderId !== participantId
+        )
+          return false;
+      }
 
-        if (!q) return true;
+      if (!q) return true;
 
-        // Build search haystack across name, notes, summary, and each
-        // participant's name + role + unit (title and unit are searchable).
-        const participantStrings = d.participantIds.flatMap((id) => {
-          const p = lookupParticipant(id);
-          if (!p) return [];
-          return [p.name, p.role ?? "", p.unit ?? ""];
-        });
-        const haystack = [
-          d.name,
-          d.notes ?? "",
-          d.summary ?? "",
-          ...participantStrings,
-          d.leaderId ? lookupParticipant(d.leaderId)?.name ?? "" : "",
-        ]
-          .join(" ")
-          .toLowerCase();
-        return haystack.includes(q);
-      })
-      .sort(byDateAsc);
+      const participantStrings = d.participantIds.flatMap((id) => {
+        const p = lookupParticipant(id);
+        if (!p) return [];
+        return [p.name, p.role ?? "", p.unit ?? ""];
+      });
+      const haystack = [
+        d.name,
+        d.notes ?? "",
+        d.summary ?? "",
+        ...participantStrings,
+        d.leaderId ? lookupParticipant(d.leaderId)?.name ?? "" : "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
   }, [discussions, query, quick, participantId, lookupParticipant]);
 
   return (
@@ -107,14 +111,14 @@ export function SearchView({ onOpenDiscussion }: Props) {
 
       <div className="px-3 -mx-1 overflow-x-auto scrollbar-thin">
         <div className="flex gap-2 px-1 pb-1 whitespace-nowrap">
-          {(Object.keys(QUICK_LABEL) as Quick[]).map((q) => (
+          {QUICK_OPTIONS.map((o) => (
             <Chip
-              key={q}
+              key={o.key}
               size="sm"
-              active={quick === q}
-              onClick={() => setQuick(q)}
+              active={quick === o.key}
+              onClick={() => setQuick(o.key)}
             >
-              {QUICK_LABEL[q]}
+              {o.label}
             </Chip>
           ))}
         </div>

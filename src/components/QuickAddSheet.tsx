@@ -7,16 +7,15 @@ import { Switch } from "./ui/Switch";
 import { Chip } from "./ui/Chip";
 import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
-import { DateQuickPicker } from "./DateQuickPicker";
+import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
 import { T, PRIORITY_LABEL } from "@/lib/he";
-import type { Discussion, Priority } from "@/types";
+import type { DateWindow, Discussion, Priority } from "@/types";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated?: (d: Discussion) => void;
-  /** Pre-fill from another discussion (duplicate). */
   template?: Partial<Discussion> | null;
 }
 
@@ -24,7 +23,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const { participants, addParticipant, createDiscussion } = useStore();
 
   const [name, setName] = React.useState("");
-  const [scheduledAt, setScheduledAt] = React.useState<string | null>(null);
+  const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
   const [participantIds, setParticipantIds] = React.useState<string[]>([]);
   const [leaderId, setLeaderId] = React.useState<string>("");
   const [priority, setPriority] = React.useState<Priority>("normal");
@@ -34,18 +33,16 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [submitting, setSubmitting] = React.useState(false);
   const nameRef = React.useRef<HTMLInputElement>(null);
 
-  // Reset / prefill on open
   React.useEffect(() => {
     if (!open) return;
     setName(template?.name ?? "");
-    setScheduledAt(null);
+    setDateWindow(template?.dateWindow ?? "this_week");
     setParticipantIds(template?.participantIds ?? []);
     setLeaderId(template?.leaderId ?? "");
     setPriority(template?.priority ?? "normal");
     setRequiresSummary(template?.requiresSummary ?? true);
     setNotes(template?.notes ?? "");
     setShowAdvanced(false);
-
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
@@ -58,7 +55,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     try {
       const created = await createDiscussion({
         name: name.trim(),
-        scheduledAt,
+        dateWindow,
         participantIds,
         leaderId: leaderId || null,
         priority,
@@ -107,7 +104,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Name */}
         <div>
           <Label htmlFor="qa-name">שם הדיון *</Label>
           <Input
@@ -120,18 +116,11 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           />
         </div>
 
-        {/* Date — relative chips */}
         <div>
-          <Label>מועד (אופציונלי)</Label>
-          <DateQuickPicker value={scheduledAt} onChange={setScheduledAt} />
-          {!scheduledAt && (
-            <p className="mt-1.5 text-[11px] text-muted-foreground">
-              ניתן לשמור ללא תאריך — הדיון יופיע בסעיף "ממתינים לתיאום".
-            </p>
-          )}
+          <Label>{T.window}</Label>
+          <DateWindowPicker value={dateWindow} onChange={setDateWindow} />
         </div>
 
-        {/* Quick priority pills */}
         <div>
           <Label>{T.priority}</Label>
           <div className="flex gap-2">
@@ -148,7 +137,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           </div>
         </div>
 
-        {/* Participants */}
         <div>
           <Label>{T.participants}</Label>
           <ParticipantPicker
@@ -159,7 +147,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           />
         </div>
 
-        {/* Advanced toggle */}
         <button
           type="button"
           onClick={() => setShowAdvanced((s) => !s)}

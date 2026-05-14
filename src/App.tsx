@@ -24,8 +24,10 @@ export default function App() {
   }
 
   const openDiscussion = discussions.find((d) => d.id === openId) ?? null;
+
+  // "Needs a time bucket" indicator — scheduled but no window chosen
   const pendingScheduling = discussions.filter(
-    (d) => d.status === "requires_scheduling"
+    (d) => d.status === "scheduled" && d.dateWindow === "unspecified"
   ).length;
 
   function handleClearAll() {
@@ -41,6 +43,7 @@ export default function App() {
       participantIds: d.participantIds,
       leaderId: d.leaderId,
       requiresSummary: d.requiresSummary,
+      dateWindow: d.dateWindow,
       notes: d.notes,
     });
     setOpenId(null);
