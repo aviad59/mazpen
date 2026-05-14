@@ -18,6 +18,7 @@ export interface Repository {
   putDiscussion(d: Discussion): Promise<void>;
   deleteDiscussion(id: string): Promise<void>;
   putParticipant(p: Participant): Promise<void>;
+  deleteParticipant(id: string): Promise<void>;
   reset(): Promise<void>;
 }
 

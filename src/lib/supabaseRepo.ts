@@ -19,7 +19,6 @@ import type {
   Priority,
   DiscussionStatus,
 } from "@/types";
-import { SEED_DISCUSSIONS, SEED_PARTICIPANTS } from "./seed";
 import type { Repository } from "./repo";
 
 // --- row shapes --------------------------------------------------------
@@ -120,38 +119,16 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     auth: { persistSession: false },
   });
 
-  let seedAttempted = false;
-
-  /** Seed on first run only if both tables are empty. */
-  async function maybeSeed() {
-    if (seedAttempted) return;
-    seedAttempted = true;
-    const [{ count: discCount }, { count: partCount }] = await Promise.all([
-      client.from("discussions").select("id", { count: "exact", head: true }),
-      client.from("participants").select("id", { count: "exact", head: true }),
-    ]);
-    if ((discCount ?? 0) === 0 && (partCount ?? 0) === 0) {
-      await client
-        .from("participants")
-        .upsert(SEED_PARTICIPANTS.map(toParticipantRow));
-      await client
-        .from("discussions")
-        .upsert(SEED_DISCUSSIONS.map(toDiscussionRow));
-    }
-  }
-
   return {
     kind: "supabase",
 
     async listDiscussions() {
-      await maybeSeed();
       const { data, error } = await client.from("discussions").select("*");
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },
 
     async listParticipants() {
-      await maybeSeed();
       const { data, error } = await client.from("participants").select("*");
       if (error) throw error;
       return (data as ParticipantRow[]).map(fromParticipantRow);
@@ -172,12 +149,15 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
       if (error) throw error;
     },
 
+    async deleteParticipant(id) {
+      const { error } = await client.from("participants").delete().eq("id", id);
+      if (error) throw error;
+    },
+
     async reset() {
-      // Best-effort wipe + reseed.
+      // Wipe both tables — DOES NOT re-seed.
       await client.from("discussions").delete().neq("id", "__noop__");
       await client.from("participants").delete().neq("id", "__noop__");
-      seedAttempted = false;
-      await maybeSeed();
     },
   };
 }

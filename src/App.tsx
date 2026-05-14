@@ -6,18 +6,19 @@ import { TopBar } from "./components/TopBar";
 import { BottomNav, type Tab } from "./components/BottomNav";
 import { QuickAddSheet } from "./components/QuickAddSheet";
 import { DiscussionDetail } from "./components/DiscussionDetail";
+import { ParticipantsSheet } from "./components/ParticipantsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { useStore } from "./store/useStore";
 import type { Discussion } from "./types";
 
 export default function App() {
-  const { discussions, error, reseed, reload } = useStore();
+  const { discussions, error, clearAll, reload } = useStore();
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [participantsOpen, setParticipantsOpen] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
-  // Hard-stop screen: backend isn't configured / reachable
   if (error) {
     return <BackendErrorScreen error={error} onRetry={() => reload()} />;
   }
@@ -27,9 +28,9 @@ export default function App() {
     (d) => d.status === "requires_scheduling"
   ).length;
 
-  function handleReseed() {
-    if (confirm("לאפס נתונים ולהחזיר את ערכת הדוגמה?")) {
-      reseed();
+  function handleClearAll() {
+    if (confirm("למחוק את כל הדיונים והמשתתפים? פעולה זו לא ניתנת לשחזור.")) {
+      clearAll();
     }
   }
 
@@ -40,8 +41,6 @@ export default function App() {
       participantIds: d.participantIds,
       leaderId: d.leaderId,
       requiresSummary: d.requiresSummary,
-      requiresApproval: d.requiresApproval,
-      requiresDistribution: d.requiresDistribution,
       notes: d.notes,
     });
     setOpenId(null);
@@ -56,7 +55,8 @@ export default function App() {
           setAddOpen(true);
         }}
         onOpenSearch={() => setTab("search")}
-        onReseed={handleReseed}
+        onOpenParticipants={() => setParticipantsOpen(true)}
+        onClearAll={handleClearAll}
         pendingScheduling={pendingScheduling}
       />
 
@@ -87,6 +87,11 @@ export default function App() {
         discussion={openDiscussion}
         onClose={() => setOpenId(null)}
         onDuplicate={handleDuplicate}
+      />
+
+      <ParticipantsSheet
+        open={participantsOpen}
+        onClose={() => setParticipantsOpen(false)}
       />
     </div>
   );

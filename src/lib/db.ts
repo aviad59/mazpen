@@ -1,6 +1,5 @@
 /**
  * Public DB facade — thin wrappers that delegate to the Supabase Repository.
- *
  * Components and the store import only from here.
  */
 
@@ -27,6 +26,11 @@ export function putParticipant(p: Participant): Promise<void> {
   return getRepo().putParticipant(p);
 }
 
-export function resetAndReseed(): Promise<void> {
+export function deleteParticipantById(id: string): Promise<void> {
+  return getRepo().deleteParticipant(id);
+}
+
+/** Wipes ALL data (discussions + participants). No re-seed. */
+export function clearAllData(): Promise<void> {
   return getRepo().reset();
 }

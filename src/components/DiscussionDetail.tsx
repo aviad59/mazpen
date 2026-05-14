@@ -141,7 +141,8 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       d.id,
       {
         summary: draftSummary.trim(),
-        status: d.requiresApproval ? "waiting_approval" : "waiting_distribution",
+        // requires_summary == true always implies the approval+distribution flow.
+        status: "waiting_approval",
       },
       { kind: "summary_changed", text: "סיכום נכתב" }
     );
@@ -203,9 +204,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={d.status} />
           <PriorityBadge priority={d.priority} />
-          {d.requiresSummary && <Badge tone="muted">דורש סיכום</Badge>}
-          {d.requiresApproval && <Badge tone="muted">דורש אישור</Badge>}
-          {d.requiresDistribution && <Badge tone="muted">דורש הפצה</Badge>}
+          {d.requiresSummary && <Badge tone="muted">דורש סיכום + אישור + הפצה</Badge>}
         </div>
 
         {/* Date / leader / external units */}

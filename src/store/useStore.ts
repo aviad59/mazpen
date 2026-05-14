@@ -1,7 +1,6 @@
 /**
  * Global app store — a tiny custom store built on useSyncExternalStore.
- * Persists to Supabase via @/lib/db and provides actions for
- * discussion lifecycle changes.
+ * Persists to Supabase via @/lib/db.
  */
 
 import { useSyncExternalStore, useCallback, useMemo } from "react";
@@ -13,12 +12,13 @@ import type {
   Participant,
 } from "@/types";
 import {
+  clearAllData,
   deleteDiscussion as dbDelete,
+  deleteParticipantById,
   listDiscussions,
   listParticipants,
   putDiscussion as dbPut,
   putParticipant as dbPutParticipant,
-  resetAndReseed as dbReset,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
 import { uid } from "@/lib/utils";
@@ -211,14 +211,30 @@ async function addParticipant(p: Omit<Participant, "id">): Promise<Participant> 
   return full;
 }
 
+async function updateParticipant(p: Participant): Promise<void> {
+  await dbPutParticipant(p);
+  setState((s) => ({
+    ...s,
+    participants: s.participants.map((x) => (x.id === p.id ? p : x)),
+  }));
+}
+
+async function removeParticipant(id: string): Promise<void> {
+  await deleteParticipantById(id);
+  setState((s) => ({
+    ...s,
+    participants: s.participants.filter((x) => x.id !== id),
+  }));
+}
+
 async function addNote(id: string, text: string) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current || !text.trim()) return;
   await upsert(current, buildEvent("note", text.trim()));
 }
 
-async function reseed() {
-  await dbReset();
+async function clearAll() {
+  await clearAllData();
   await load();
 }
 
@@ -265,8 +281,10 @@ export function useStore() {
     rescheduleDiscussion,
     removeDiscussion,
     addParticipant,
+    updateParticipant,
+    removeParticipant,
     addNote,
-    reseed,
+    clearAll,
     reload: load,
   };
 }
