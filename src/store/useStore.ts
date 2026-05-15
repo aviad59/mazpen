@@ -302,20 +302,3 @@ export function useStore() {
     reload: load,
   };
 }
-    error: snap.error,
-    discussions: snap.discussions,
-    participants: snap.participants,
-    lookupParticipant,
-    createDiscussion,
-    updateDiscussion,
-    changeStatus,
-    setDateWindow,
-    removeDiscussion,
-    addParticipant,
-    updateParticipant,
-    removeParticipant,
-    addNote,
-    clearAll,
-    reload: load,
-  };
-}
