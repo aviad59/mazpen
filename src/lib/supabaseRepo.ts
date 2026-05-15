@@ -114,7 +114,7 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     kind: "supabase",
 
     async listDiscussions() {
-      const { data, error } = await client.from("discussions").select("*");
+      const { data, error } = await client.from("discussions").select("id,name,status,priority,date_window,participant_ids,extra_participants,leader_id,requires_summary,notes,summary,attachments,history,created_at,updated_at");
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },

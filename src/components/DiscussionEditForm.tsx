@@ -52,7 +52,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       <div>
         <Label>{T.priority}</Label>
         <div className="flex gap-2">
-          {(["normal", "high", "urgent"] as Priority[]).map((p) => (
+          {(["normal", "high"] as Priority[]).map((p) => (
             <Chip
               key={p}
               active={state.priority === p}

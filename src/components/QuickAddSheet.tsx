@@ -46,6 +46,13 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
+  // Auto-set first participant as leader
+  React.useEffect(() => {
+    if (participantIds.length > 0 && !leaderId) {
+      setLeaderId(participantIds[0]);
+    }
+  }, [participantIds]);
+
   const canSubmit = name.trim() && !submitting;
 
   async function handleSubmit(e?: React.FormEvent) {
@@ -124,7 +131,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         <div>
           <Label>{T.priority}</Label>
           <div className="flex gap-2">
-            {(["normal", "high", "urgent"] as Priority[]).map((p) => (
+            {(["normal", "high"] as Priority[]).map((p) => (
               <Chip
                 key={p}
                 active={priority === p}

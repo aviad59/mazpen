@@ -1,4 +1,4 @@
-import { Building2, CalendarRange, FileText, Paperclip, AlertCircle } from "lucide-react";
+import { Building2, CalendarRange, FileText, Paperclip } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
@@ -23,7 +23,6 @@ function externalUnits(participants: Participant[]): string[] {
 }
 
 export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact }: Props) {
-  const urgent = d.priority === "urgent";
   const thisWeek = d.dateWindow === "this_week";
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
@@ -38,8 +37,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       onClick={() => onOpen(d.id)}
       className={cn(
         "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99] active:shadow-sm",
-        urgent && "ring-1 ring-destructive/60",
-        thisWeek && !urgent && "ring-1 ring-accent/30",
+        thisWeek && "ring-1 ring-accent/30",
         compact ? "p-3" : "p-4"
       )}
       role="button"
@@ -59,13 +57,6 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
             compact ? "text-sm" : "text-[15px]"
           )}
         >
-          {urgent && (
-            <AlertCircle
-              size={14}
-              className="inline-block ml-1 -mt-0.5 text-destructive"
-              aria-label="דחוף"
-            />
-          )}
           {d.name}
         </h3>
       </div>

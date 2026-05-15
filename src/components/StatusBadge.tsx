@@ -19,7 +19,7 @@ export function StatusBadge({ status }: { status: DiscussionStatus }) {
 export function PriorityBadge({ priority }: { priority: Priority }) {
   if (priority === "normal") return null;
   return (
-    <Badge tone={priority === "urgent" ? "danger" : "warning"}>
+    <Badge tone="warning">
       {PRIORITY_LABEL[priority]}
     </Badge>
   );
