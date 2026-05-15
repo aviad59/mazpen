@@ -1,6 +1,6 @@
 import { Badge } from "./ui/Badge";
-import type { DiscussionStatus, Priority } from "@/types";
-import { PRIORITY_LABEL, STATUS_LABEL } from "@/lib/he";
+import type { DiscussionStatus } from "@/types";
+import { STATUS_LABEL } from "@/lib/he";
 
 const STATUS_TONE: Record<DiscussionStatus, Parameters<typeof Badge>[0]["tone"]> = {
   scheduled: "info",
@@ -14,13 +14,4 @@ const STATUS_TONE: Record<DiscussionStatus, Parameters<typeof Badge>[0]["tone"]>
 
 export function StatusBadge({ status }: { status: DiscussionStatus }) {
   return <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>;
-}
-
-export function PriorityBadge({ priority }: { priority: Priority }) {
-  if (priority === "normal") return null;
-  return (
-    <Badge tone="warning">
-      {PRIORITY_LABEL[priority]}
-    </Badge>
-  );
 }

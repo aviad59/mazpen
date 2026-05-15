@@ -5,7 +5,6 @@ import type {
   DashboardSection,
   DateWindow,
   DiscussionStatus,
-  Priority,
 } from "@/types";
 
 export const APP_NAME = "מצפן";
@@ -22,12 +21,6 @@ export const STATUS_LABEL: Record<DiscussionStatus, string> = {
   waiting_distribution: "ממתין להפצה",
   completed: "הושלם",
   cancelled: "בוטל",
-};
-
-export const PRIORITY_LABEL: Record<Priority, string> = {
-  normal: "רגיל",
-  high: "גבוהה",
-  urgent: "דחוף",
 };
 
 export const WINDOW_LABEL: Record<DateWindow, string> = {
@@ -87,7 +80,6 @@ export const T = {
   markDistributed: "סמן כהופץ",
   addParticipant: "הוסף משתתף",
   selectLeader: "בחר מוביל",
-  priority: "עדיפות",
   requiresSummary: "דורש סיכום (כולל אישור והפצה)",
   writeSummary: "כתוב סיכום...",
   addNote: "הוסף הערה...",

@@ -31,8 +31,6 @@ export type DashboardSection =
   | "waiting_distribution"
   | "completed";
 
-export type Priority = "normal" | "high" | "urgent";
-
 export interface Participant {
   id: string;
   name: string;
@@ -74,7 +72,6 @@ export interface Discussion {
   id: string;
   name: string;
   status: DiscussionStatus;
-  priority: Priority;
 
   /** When the discussion should happen — coarse bucket, not a specific date. */
   dateWindow: DateWindow;

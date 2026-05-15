@@ -4,13 +4,12 @@ import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
-import { Chip } from "./ui/Chip";
 import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
-import { T, PRIORITY_LABEL } from "@/lib/he";
-import type { DateWindow, Discussion, Priority } from "@/types";
+import { T } from "@/lib/he";
+import type { DateWindow, Discussion } from "@/types";
 
 interface Props {
   open: boolean;
@@ -26,7 +25,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
   const [participantIds, setParticipantIds] = React.useState<string[]>([]);
   const [leaderId, setLeaderId] = React.useState<string>("");
-  const [priority, setPriority] = React.useState<Priority>("normal");
   const [requiresSummary, setRequiresSummary] = React.useState(true);
   const [notes, setNotes] = React.useState("");
   const [showAdvanced, setShowAdvanced] = React.useState(false);
@@ -39,7 +37,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setDateWindow(template?.dateWindow ?? "this_week");
     setParticipantIds(template?.participantIds ?? []);
     setLeaderId(template?.leaderId ?? "");
-    setPriority(template?.priority ?? "normal");
     setRequiresSummary(template?.requiresSummary ?? true);
     setNotes(template?.notes ?? "");
     setShowAdvanced(false);
@@ -65,7 +62,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         dateWindow,
         participantIds,
         leaderId: leaderId || null,
-        priority,
         requiresSummary,
         notes: notes.trim() || undefined,
       });
@@ -126,22 +122,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         <div>
           <Label>{T.window}</Label>
           <DateWindowPicker value={dateWindow} onChange={setDateWindow} />
-        </div>
-
-        <div>
-          <Label>{T.priority}</Label>
-          <div className="flex gap-2">
-            {(["normal", "high"] as Priority[]).map((p) => (
-              <Chip
-                key={p}
-                active={priority === p}
-                onClick={() => setPriority(p)}
-                size="sm"
-              >
-                {PRIORITY_LABEL[p]}
-              </Chip>
-            ))}
-          </div>
         </div>
 
         <div>

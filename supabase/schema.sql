@@ -16,7 +16,6 @@ create table if not exists public.discussions (
   id                      text primary key,
   name                    text not null,
   status                  text not null,
-  priority                text not null default 'normal',
   date_window             text not null default 'unspecified',
   participant_ids         text[] not null default array[]::text[],
   extra_participants      text[],
@@ -29,6 +28,9 @@ create table if not exists public.discussions (
   created_at              timestamptz not null,
   updated_at              timestamptz not null
 );
+
+-- If you previously ran this schema, drop the old priority column:
+alter table public.discussions drop column if exists priority;
 
 create index if not exists discussions_status_idx      on public.discussions (status);
 create index if not exists discussions_date_window_idx on public.discussions (date_window);

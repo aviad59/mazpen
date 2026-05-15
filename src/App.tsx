@@ -39,7 +39,6 @@ export default function App() {
   function handleDuplicate(d: Discussion) {
     setTemplate({
       name: `${d.name} (עותק)`,
-      priority: d.priority,
       participantIds: d.participantIds,
       leaderId: d.leaderId,
       requiresSummary: d.requiresSummary,

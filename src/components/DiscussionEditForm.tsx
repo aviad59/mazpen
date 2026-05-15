@@ -1,11 +1,10 @@
 import { Input, Textarea, Label } from "./ui/Input";
-import { Chip } from "./ui/Chip";
 import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
-import { PRIORITY_LABEL, STATUS_LABEL, T } from "@/lib/he";
-import type { DateWindow, Discussion, DiscussionStatus, Priority } from "@/types";
+import { STATUS_LABEL, T } from "@/lib/he";
+import type { DateWindow, Discussion, DiscussionStatus } from "@/types";
 
 export interface EditState {
   name: string;
@@ -14,7 +13,6 @@ export interface EditState {
   dateWindow: DateWindow;
   participantIds: string[];
   leaderId: string;
-  priority: Priority;
 }
 
 interface Props {
@@ -47,22 +45,6 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
           value={state.dateWindow}
           onChange={(v) => onChange({ dateWindow: v })}
         />
-      </div>
-
-      <div>
-        <Label>{T.priority}</Label>
-        <div className="flex gap-2">
-          {(["normal", "high"] as Priority[]).map((p) => (
-            <Chip
-              key={p}
-              active={state.priority === p}
-              onClick={() => onChange({ priority: p })}
-              size="sm"
-            >
-              {PRIORITY_LABEL[p]}
-            </Chip>
-          ))}
-        </div>
       </div>
 
       <div>

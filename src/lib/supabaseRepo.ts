@@ -10,7 +10,6 @@ import type {
   Discussion,
   HistoryEvent,
   Participant,
-  Priority,
   DiscussionStatus,
 } from "@/types";
 import type { Repository } from "./repo";
@@ -21,7 +20,6 @@ interface DiscussionRow {
   id: string;
   name: string;
   status: DiscussionStatus;
-  priority: Priority;
   date_window: DateWindow;
   participant_ids: string[];
   extra_participants: string[] | null;
@@ -48,7 +46,6 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     id: r.id,
     name: r.name,
     status: r.status,
-    priority: r.priority,
     dateWindow: r.date_window ?? "unspecified",
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
@@ -68,7 +65,6 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     id: d.id,
     name: d.name,
     status: d.status,
-    priority: d.priority,
     date_window: d.dateWindow,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
@@ -114,7 +110,7 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     kind: "supabase",
 
     async listDiscussions() {
-      const { data, error } = await client.from("discussions").select("id,name,status,priority,date_window,participant_ids,extra_participants,leader_id,requires_summary,notes,summary,attachments,history,created_at,updated_at");
+      const { data, error } = await client.from("discussions").select("id,name,status,date_window,participant_ids,extra_participants,leader_id,requires_summary,notes,summary,attachments,history,created_at,updated_at");
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },

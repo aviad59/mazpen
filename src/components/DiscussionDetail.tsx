@@ -22,7 +22,7 @@ import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Avatar } from "./ui/Avatar";
 import { ActivityTimeline } from "./ActivityTimeline";
-import { PriorityBadge, StatusBadge } from "./StatusBadge";
+import { StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
 import { HOME_UNIT, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
@@ -63,7 +63,6 @@ const EMPTY_EDIT: EditState = {
   dateWindow: "unspecified",
   participantIds: [],
   leaderId: "",
-  priority: "normal",
 };
 
 export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Props) {
@@ -90,7 +89,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
       leaderId: discussion.leaderId ?? "",
-      priority: discussion.priority,
     });
     setEditing(false);
     setNote("");
@@ -110,7 +108,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       summary: edit.summary.trim() || undefined,
       participantIds: edit.participantIds,
       leaderId: edit.leaderId || null,
-      priority: edit.priority,
     };
     if (edit.dateWindow !== d.dateWindow) {
       await setDateWindow(d.id, edit.dateWindow);
@@ -193,7 +190,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={d.status} />
-          <PriorityBadge priority={d.priority} />
           {d.requiresSummary && <Badge tone="muted">דורש סיכום + אישור + הפצה</Badge>}
         </div>
 

@@ -2,7 +2,7 @@ import { Building2, CalendarRange, FileText, Paperclip } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
-import { PriorityBadge, StatusBadge } from "./StatusBadge";
+import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
 import type { Discussion, Participant } from "@/types";
 import { HOME_UNIT, T, WINDOW_LABEL } from "@/lib/he";
@@ -112,7 +112,6 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       {/* Footer */}
       <div className="mt-3 flex items-center gap-1.5 flex-wrap">
         <StatusBadge status={d.status} />
-        <PriorityBadge priority={d.priority} />
         {d.attachments.length > 0 && (
           <Badge tone="muted">
             <Paperclip size={10} />

@@ -67,9 +67,30 @@ async function load() {
     ]);
     setState(() => ({ loaded: true, error: null, discussions, participants }));
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    setState((p) => ({ ...p, loaded: false, error: msg }));
+    setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
   }
+}
+
+/**
+ * Best-effort string for any thrown value. Supabase/PostgREST errors are
+ * plain objects (not Error instances) shaped like `{ message, details, hint, code }`.
+ * Without this helper, `String(err)` would render "[object Object]".
+ */
+function formatError(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  if (e && typeof e === "object") {
+    const obj = e as Record<string, unknown>;
+    const parts = [obj.message, obj.details, obj.hint, obj.code]
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
+    if (parts.length > 0) return parts.join(" · ");
+    try {
+      return JSON.stringify(e);
+    } catch {
+      /* fall through */
+    }
+  }
+  return String(e);
 }
 
 void load();
@@ -122,7 +143,6 @@ export type CreateDiscussionInput = {
   dateWindow?: DateWindow;
   participantIds?: string[];
   leaderId?: string | null;
-  priority?: Discussion["priority"];
   requiresSummary?: boolean;
   notes?: string;
 };
@@ -133,7 +153,6 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     id: uid("disc-"),
     name: input.name.trim(),
     status: "scheduled",
-    priority: input.priority ?? "normal",
     dateWindow: input.dateWindow ?? "this_week",
     participantIds: input.participantIds ?? [],
     leaderId: input.leaderId ?? null,
@@ -266,6 +285,23 @@ export function useStore() {
 
   return {
     loaded: snap.loaded,
+    error: snap.error,
+    discussions: snap.discussions,
+    participants: snap.participants,
+    lookupParticipant,
+    createDiscussion,
+    updateDiscussion,
+    changeStatus,
+    setDateWindow,
+    removeDiscussion,
+    addParticipant,
+    updateParticipant,
+    removeParticipant,
+    addNote,
+    clearAll,
+    reload: load,
+  };
+}
     error: snap.error,
     discussions: snap.discussions,
     participants: snap.participants,
