@@ -5,6 +5,7 @@ import type {
   DashboardSection,
   DateWindow,
   DiscussionStatus,
+  Recurrence,
 } from "@/types";
 
 export const APP_NAME = "מצפן";
@@ -21,6 +22,16 @@ export const STATUS_LABEL: Record<DiscussionStatus, string> = {
   waiting_distribution: "ממתין להפצה",
   completed: "הושלם",
   cancelled: "בוטל",
+};
+
+export const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  none: "חד-פעמי",
+  twice_weekly: "פעמיים בשבוע",
+  thrice_weekly: "שלוש פעמים בשבוע",
+  weekly: "כל שבוע",
+  biweekly: "כל שבועיים",
+  triweekly: "כל שלושה שבועות",
+  monthly: "כל חודש",
 };
 
 export const WINDOW_LABEL: Record<DateWindow, string> = {
@@ -64,8 +75,6 @@ export const T = {
   externalUnits: "יחידות חיצוניות",
   hasExternals: "כולל משתתפים חיצוניים",
   notes: "הערות / נושא",
-  summary: "סיכום",
-  attachments: "צרופות",
   history: "פעילות",
   cancel: "ביטול",
   save: "שמירה",
@@ -81,9 +90,9 @@ export const T = {
   addParticipant: "הוסף משתתף",
   selectLeader: "בחר מוביל",
   requiresSummary: "דורש סיכום (כולל אישור והפצה)",
-  writeSummary: "כתוב סיכום...",
+  requiresSubstrate: "האם צריך מצע",
+  recurrence: "תדירות",
   addNote: "הוסף הערה...",
-  addAttachment: "הוסף צרופה",
   empty: {
     this_week: "אין דיונים השבוע",
     next_week: "אין דיונים בשבוע הבא",

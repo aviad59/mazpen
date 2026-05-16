@@ -140,25 +140,36 @@ async function upsert(discussion: Discussion, event?: HistoryEvent) {
 
 export type CreateDiscussionInput = {
   name: string;
+  /** Required — every discussion must have a leader. */
+  leaderId: string;
+  /** Must include at least the leader. */
+  participantIds: string[];
   dateWindow?: DateWindow;
-  participantIds?: string[];
-  leaderId?: string | null;
   requiresSummary?: boolean;
+  requiresSubstrate?: boolean;
+  recurrence?: Discussion["recurrence"];
   notes?: string;
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
+  if (!input.leaderId) {
+    throw new Error("חובה לבחור מוביל לדיון");
+  }
+  if (!input.participantIds.includes(input.leaderId)) {
+    throw new Error("המוביל חייב להיות אחד מהמשתתפים");
+  }
   const nowIso = new Date().toISOString();
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
     status: "scheduled",
     dateWindow: input.dateWindow ?? "this_week",
-    participantIds: input.participantIds ?? [],
-    leaderId: input.leaderId ?? null,
+    participantIds: input.participantIds,
+    leaderId: input.leaderId,
     requiresSummary: input.requiresSummary ?? true,
+    requiresSubstrate: input.requiresSubstrate ?? true,
+    recurrence: input.recurrence ?? "none",
     notes: input.notes,
-    attachments: [],
     history: [
       {
         id: uid("h-"),

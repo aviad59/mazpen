@@ -1,11 +1,11 @@
-import { Building2, CalendarRange, FileText, Paperclip } from "lucide-react";
+import { Building2, CalendarRange, FileStack } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
 import { StatusBadge } from "./StatusBadge";
 import { cn } from "@/lib/utils";
 import type { Discussion, Participant } from "@/types";
-import { HOME_UNIT, T, WINDOW_LABEL } from "@/lib/he";
+import { HOME_UNIT, RECURRENCE_LABEL, T, WINDOW_LABEL } from "@/lib/he";
 
 interface Props {
   discussion: Discussion;
@@ -112,17 +112,14 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       {/* Footer */}
       <div className="mt-3 flex items-center gap-1.5 flex-wrap">
         <StatusBadge status={d.status} />
-        {d.attachments.length > 0 && (
+        {d.requiresSubstrate && (
           <Badge tone="muted">
-            <Paperclip size={10} />
-            {d.attachments.length}
+            <FileStack size={10} />
+            מצע
           </Badge>
         )}
-        {d.summary && (
-          <Badge tone="accent">
-            <FileText size={10} />
-            סיכום
-          </Badge>
+        {d.recurrence !== "none" && (
+          <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>
         )}
       </div>
     </Card>

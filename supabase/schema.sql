@@ -19,18 +19,26 @@ create table if not exists public.discussions (
   date_window             text not null default 'unspecified',
   participant_ids         text[] not null default array[]::text[],
   extra_participants      text[],
-  leader_id               text,
+  leader_id               text not null,
   requires_summary        boolean not null default true,
+  requires_substrate      boolean not null default true,
+  recurrence              text not null default 'none',
   notes                   text,
   summary                 text,
-  attachments             jsonb not null default '[]'::jsonb,
   history                 jsonb not null default '[]'::jsonb,
   created_at              timestamptz not null,
   updated_at              timestamptz not null
 );
 
--- If you previously ran this schema, drop the old priority column:
+-- Migration for DBs that ran an earlier version of this schema:
 alter table public.discussions drop column if exists priority;
+alter table public.discussions drop column if exists attachments;
+alter table public.discussions
+  add column if not exists requires_substrate boolean not null default true;
+alter table public.discussions
+  add column if not exists recurrence text not null default 'none';
+alter table public.discussions
+  alter column leader_id set not null;
 
 create index if not exists discussions_status_idx      on public.discussions (status);
 create index if not exists discussions_date_window_idx on public.discussions (date_window);
@@ -47,13 +55,4 @@ drop policy if exists "anon read discussions"   on public.discussions;
 drop policy if exists "anon write discussions"  on public.discussions;
 
 create policy "anon read participants"
-  on public.participants for select using (true);
-create policy "anon write participants"
-  on public.participants for all
-  using (true) with check (true);
-
-create policy "anon read discussions"
-  on public.discussions for select using (true);
-create policy "anon write discussions"
-  on public.discussions for all
-  using (true) with check (true);
+  on public.participants for selec

@@ -42,6 +42,8 @@ export default function App() {
       participantIds: d.participantIds,
       leaderId: d.leaderId,
       requiresSummary: d.requiresSummary,
+      requiresSubstrate: d.requiresSubstrate,
+      recurrence: d.recurrence,
       dateWindow: d.dateWindow,
       notes: d.notes,
     });

@@ -4,7 +4,6 @@ import {
   Edit3,
   FileText,
   MessageSquare,
-  Paperclip,
   Plus,
   RefreshCw,
   Users,
@@ -20,7 +19,6 @@ const ICON_BY_KIND: Record<HistoryKind, LucideIcon> = {
   leader_changed: Users,
   summary_changed: FileText,
   note: MessageSquare,
-  attachment_added: Paperclip,
 };
 
 export function ActivityTimeline({ history }: { history: HistoryEvent[] }) {

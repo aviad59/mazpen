@@ -11,6 +11,19 @@
  */
 export type DateWindow = "this_week" | "next_week" | "later" | "unspecified";
 
+/**
+ * How often the discussion repeats. `none` is a one-off.
+ * Recurrence is informational metadata — no auto-instance generation.
+ */
+export type Recurrence =
+  | "none"
+  | "twice_weekly"
+  | "thrice_weekly"
+  | "weekly"
+  | "biweekly"
+  | "triweekly"
+  | "monthly";
+
 export type DiscussionStatus =
   | "scheduled"
   | "occurred"
@@ -41,14 +54,6 @@ export interface Participant {
   external?: boolean;
 }
 
-export interface Attachment {
-  id: string;
-  name: string;
-  url?: string;
-  kind: "presentation" | "summary" | "file";
-  addedAt: string;
-}
-
 export type HistoryKind =
   | "created"
   | "status_changed"
@@ -56,8 +61,7 @@ export type HistoryKind =
   | "participants_changed"
   | "leader_changed"
   | "summary_changed"
-  | "note"
-  | "attachment_added";
+  | "note";
 
 export interface HistoryEvent {
   id: string;
@@ -78,7 +82,8 @@ export interface Discussion {
 
   participantIds: string[];
   extraParticipants?: string[];
-  leaderId?: string | null;
+  /** Required — every discussion has a leader (defaults to the first participant). */
+  leaderId: string;
 
   /**
    * Whether this discussion requires a written summary.
@@ -88,10 +93,15 @@ export interface Discussion {
    */
   requiresSummary: boolean;
 
+  /** Whether this discussion needs a prep "מצע" (briefing material) before it occurs. */
+  requiresSubstrate: boolean;
+
+  /** How often the discussion repeats. Defaults to `none` (one-off). */
+  recurrence: Recurrence;
+
   notes?: string;
   summary?: string;
 
-  attachments: Attachment[];
   history: HistoryEvent[];
 
   createdAt: string;

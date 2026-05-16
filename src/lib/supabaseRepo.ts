@@ -5,11 +5,11 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
-  Attachment,
   DateWindow,
   Discussion,
   HistoryEvent,
   Participant,
+  Recurrence,
   DiscussionStatus,
 } from "@/types";
 import type { Repository } from "./repo";
@@ -23,11 +23,12 @@ interface DiscussionRow {
   date_window: DateWindow;
   participant_ids: string[];
   extra_participants: string[] | null;
-  leader_id: string | null;
+  leader_id: string;
   requires_summary: boolean;
+  requires_substrate: boolean;
+  recurrence: Recurrence;
   notes: string | null;
   summary: string | null;
-  attachments: Attachment[];
   history: HistoryEvent[];
   created_at: string;
   updated_at: string;
@@ -49,11 +50,12 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     dateWindow: r.date_window ?? "unspecified",
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
-    leaderId: r.leader_id ?? null,
+    leaderId: r.leader_id,
     requiresSummary: r.requires_summary,
+    requiresSubstrate: r.requires_substrate ?? true,
+    recurrence: r.recurrence ?? "none",
     notes: r.notes ?? undefined,
     summary: r.summary ?? undefined,
-    attachments: r.attachments ?? [],
     history: r.history ?? [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -68,11 +70,12 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     date_window: d.dateWindow,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
-    leader_id: d.leaderId ?? null,
+    leader_id: d.leaderId,
     requires_summary: d.requiresSummary,
+    requires_substrate: d.requiresSubstrate,
+    recurrence: d.recurrence,
     notes: d.notes ?? null,
     summary: d.summary ?? null,
-    attachments: d.attachments,
     history: d.history,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
@@ -110,7 +113,7 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     kind: "supabase",
 
     async listDiscussions() {
-      const { data, error } = await client.from("discussions").select("id,name,status,date_window,participant_ids,extra_participants,leader_id,requires_summary,notes,summary,attachments,history,created_at,updated_at");
+      const { data, error } = await client.from("discussions").select("id,name,status,date_window,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,notes,summary,history,created_at,updated_at");
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },

@@ -6,9 +6,8 @@ import {
   ChevronLeft,
   Clock,
   Copy,
-  FileText,
+  FileStack,
   MessageSquare,
-  Paperclip,
   Send,
   Sparkles,
   Trash2,
@@ -17,7 +16,7 @@ import {
 } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
 import { Button } from "./ui/Button";
-import { Input, Textarea, Label } from "./ui/Input";
+import { Input, Label } from "./ui/Input";
 import { Card } from "./ui/Card";
 import { Badge } from "./ui/Badge";
 import { Avatar } from "./ui/Avatar";
@@ -25,7 +24,7 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
-import { HOME_UNIT, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import { HOME_UNIT, RECURRENCE_LABEL, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
 import { cn } from "@/lib/utils";
 import type { Discussion, DiscussionStatus } from "@/types";
 
@@ -39,7 +38,7 @@ interface Props {
 const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
   scheduled: [{ label: T.markOccurred, to: "occurred" }],
   occurred: [{ label: T.startSummary, to: "waiting_summary" }],
-  waiting_summary: [{ label: "סיכום נכתב — לאישור", to: "waiting_approval" }],
+  waiting_summary: [{ label: "סיכום הושלם — לאישור", to: "waiting_approval" }],
   waiting_approval: [{ label: T.approveSummary, to: "waiting_distribution" }],
   waiting_distribution: [{ label: T.markDistributed, to: "completed" }],
   completed: [],
@@ -59,10 +58,12 @@ const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
 const EMPTY_EDIT: EditState = {
   name: "",
   notes: "",
-  summary: "",
   dateWindow: "unspecified",
   participantIds: [],
   leaderId: "",
+  requiresSummary: true,
+  requiresSubstrate: true,
+  recurrence: "none",
 };
 
 export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Props) {
@@ -78,21 +79,21 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   const [editing, setEditing] = React.useState(false);
   const [edit, setEdit] = React.useState<EditState>(EMPTY_EDIT);
   const [note, setNote] = React.useState("");
-  const [draftSummary, setDraftSummary] = React.useState("");
 
   React.useEffect(() => {
     if (!discussion) return;
     setEdit({
       name: discussion.name,
       notes: discussion.notes ?? "",
-      summary: discussion.summary ?? "",
       dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
-      leaderId: discussion.leaderId ?? "",
+      leaderId: discussion.leaderId,
+      requiresSummary: discussion.requiresSummary,
+      requiresSubstrate: discussion.requiresSubstrate,
+      recurrence: discussion.recurrence,
     });
     setEditing(false);
     setNote("");
-    setDraftSummary("");
   }, [discussion]);
 
   if (!discussion) return null;
@@ -100,14 +101,22 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   const nextActions = NEXT_ACTIONS[d.status] ?? [];
   const prevStatus = PREV_STATUS[d.status];
 
+  const editIsValid =
+    edit.name.trim().length > 0 &&
+    edit.participantIds.length > 0 &&
+    !!edit.leaderId &&
+    edit.participantIds.includes(edit.leaderId);
+
   async function persistEdits() {
-    if (!d) return;
+    if (!d || !editIsValid) return;
     const patch: Partial<Discussion> = {
       name: edit.name.trim(),
       notes: edit.notes.trim() || undefined,
-      summary: edit.summary.trim() || undefined,
       participantIds: edit.participantIds,
-      leaderId: edit.leaderId || null,
+      leaderId: edit.leaderId,
+      requiresSummary: edit.requiresSummary,
+      requiresSubstrate: edit.requiresSubstrate,
+      recurrence: edit.recurrence,
     };
     if (edit.dateWindow !== d.dateWindow) {
       await setDateWindow(d.id, edit.dateWindow);
@@ -126,16 +135,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     if (!confirm("למחוק את הדיון לצמיתות?")) return;
     await removeDiscussion(d.id);
     onClose();
-  }
-
-  async function handleSaveSummary() {
-    if (!draftSummary.trim()) return;
-    await updateDiscussion(
-      d.id,
-      { summary: draftSummary.trim(), status: "waiting_approval" },
-      { kind: "summary_changed", text: "סיכום נכתב" }
-    );
-    setDraftSummary("");
   }
 
   const footer = !editing ? (
@@ -163,13 +162,18 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       <Button variant="ghost" size="md" onClick={() => setEditing(false)} className="flex-1">
         {T.cancel}
       </Button>
-      <Button size="md" onClick={persistEdits} className="flex-[2]">
+      <Button
+        size="md"
+        onClick={persistEdits}
+        disabled={!editIsValid}
+        className="flex-[2]"
+      >
         {T.save}
       </Button>
     </div>
   );
 
-  const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+  const leader = lookupParticipant(d.leaderId);
 
   const externalUnitsList = Array.from(
     new Set(
@@ -191,6 +195,15 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={d.status} />
           {d.requiresSummary && <Badge tone="muted">דורש סיכום + אישור + הפצה</Badge>}
+          {d.requiresSubstrate && (
+            <Badge tone="muted">
+              <FileStack size={10} />
+              דורש מצע
+            </Badge>
+          )}
+          {d.recurrence !== "none" && (
+            <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>
+          )}
         </div>
 
         <Card className="p-4">
@@ -299,51 +312,6 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
               <MessageSquare size={14} /> {T.notes}
             </h3>
             <p className="text-sm text-foreground/80 whitespace-pre-wrap">{d.notes}</p>
-          </Card>
-        )}
-
-        {!editing && d.requiresSummary && (
-          <Card className="p-4">
-            <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-              <FileText size={14} /> {T.summary}
-            </h3>
-            {d.summary ? (
-              <p className="text-sm text-foreground/80 whitespace-pre-wrap">{d.summary}</p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">טרם נכתב סיכום.</p>
-                <Textarea
-                  placeholder={T.writeSummary}
-                  value={draftSummary}
-                  onChange={(e) => setDraftSummary(e.target.value)}
-                  rows={4}
-                />
-                <Button size="sm" onClick={handleSaveSummary} disabled={!draftSummary.trim()}>
-                  שמור סיכום והתקדם
-                </Button>
-              </div>
-            )}
-          </Card>
-        )}
-
-        {!editing && (
-          <Card className="p-4">
-            <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
-              <Paperclip size={14} /> {T.attachments}
-            </h3>
-            {d.attachments.length === 0 ? (
-              <p className="text-xs text-muted-foreground">אין צרופות.</p>
-            ) : (
-              <ul className="space-y-2">
-                {d.attachments.map((a) => (
-                  <li key={a.id} className="flex items-center gap-2 text-sm">
-                    <Paperclip size={12} className="text-muted-foreground" />
-                    <span className="truncate">{a.name}</span>
-                    <Badge tone="muted" className="ms-auto">{a.kind}</Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
           </Card>
         )}
 
