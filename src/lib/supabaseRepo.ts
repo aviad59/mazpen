@@ -9,6 +9,7 @@ import type {
   Discussion,
   HistoryEvent,
   Participant,
+  ParticipantGroup,
   Recurrence,
   DiscussionStatus,
 } from "@/types";
@@ -40,6 +41,12 @@ interface ParticipantRow {
   role: string | null;
   unit: string | null;
   external: boolean;
+}
+
+interface ParticipantGroupRow {
+  id: string;
+  name: string;
+  participant_ids: string[];
 }
 
 function fromDiscussionRow(r: DiscussionRow): Discussion {
@@ -102,6 +109,14 @@ function toParticipantRow(p: Participant): ParticipantRow {
   };
 }
 
+function fromGroupRow(r: ParticipantGroupRow): ParticipantGroup {
+  return { id: r.id, name: r.name, participantIds: r.participant_ids ?? [] };
+}
+
+function toGroupRow(g: ParticipantGroup): ParticipantGroupRow {
+  return { id: g.id, name: g.name, participant_ids: g.participantIds };
+}
+
 // --- adapter -----------------------------------------------------------
 
 export function createSupabaseRepo(url: string, anonKey: string): Repository {
@@ -124,6 +139,12 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
       return (data as ParticipantRow[]).map(fromParticipantRow);
     },
 
+    async listGroups() {
+      const { data, error } = await client.from("participant_groups").select("*");
+      if (error) throw error;
+      return (data as ParticipantGroupRow[]).map(fromGroupRow);
+    },
+
     async putDiscussion(d) {
       const { error } = await client.from("discussions").upsert(toDiscussionRow(d));
       if (error) throw error;
@@ -141,6 +162,16 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
 
     async deleteParticipant(id) {
       const { error } = await client.from("participants").delete().eq("id", id);
+      if (error) throw error;
+    },
+
+    async putGroup(g) {
+      const { error } = await client.from("participant_groups").upsert(toGroupRow(g));
+      if (error) throw error;
+    },
+
+    async deleteGroup(id) {
+      const { error } = await client.from("participant_groups").delete().eq("id", id);
       if (error) throw error;
     },
 

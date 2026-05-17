@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
-  const { participants, addParticipant, createDiscussion } = useStore();
+  const { participants, groups, addParticipant, createDiscussion } = useStore();
 
   const [name, setName] = React.useState("");
   const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
@@ -135,6 +135,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           <Label>{T.participants} *</Label>
           <ParticipantPicker
             participants={participants}
+            groups={groups}
             value={participantIds}
             onChange={setParticipantIds}
             onCreate={addParticipant}

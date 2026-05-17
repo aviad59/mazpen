@@ -54,6 +54,12 @@ export interface Participant {
   external?: boolean;
 }
 
+export interface ParticipantGroup {
+  id: string;
+  name: string;
+  participantIds: string[];
+}
+
 export type HistoryKind =
   | "created"
   | "status_changed"

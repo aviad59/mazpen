@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function DiscussionEditForm({ discussion, state, onChange }: Props) {
-  const { participants, addParticipant, changeStatus } = useStore();
+  const { participants, groups, addParticipant, changeStatus } = useStore();
 
   // Auto-default leader to the first participant whenever the leader becomes
   // empty or falls out of the participant list (e.g. after a participant
@@ -62,6 +62,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
         <Label>{T.participants} *</Label>
         <ParticipantPicker
           participants={participants}
+          groups={groups}
           value={state.participantIds}
           onChange={(ids) => onChange({ participantIds: ids })}
           onCreate={addParticipant}

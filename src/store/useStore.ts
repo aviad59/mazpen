@@ -11,14 +11,18 @@ import type {
   HistoryEvent,
   HistoryKind,
   Participant,
+  ParticipantGroup,
 } from "@/types";
 import {
   clearAllData,
   deleteDiscussion as dbDelete,
+  deleteGroupById,
   deleteParticipantById,
   listDiscussions,
+  listGroups,
   listParticipants,
   putDiscussion as dbPut,
+  putGroup as dbPutGroup,
   putParticipant as dbPutParticipant,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
@@ -30,6 +34,7 @@ interface State {
   error: string | null;
   discussions: Discussion[];
   participants: Participant[];
+  groups: ParticipantGroup[];
 }
 
 let state: State = {
@@ -37,6 +42,7 @@ let state: State = {
   error: null,
   discussions: [],
   participants: [],
+  groups: [],
 };
 const listeners = new Set<() => void>();
 
@@ -57,15 +63,17 @@ async function load() {
         "Supabase לא הוגדר. הוסף VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY לקובץ .env והפעל מחדש.",
       discussions: [],
       participants: [],
+      groups: [],
     }));
     return;
   }
   try {
-    const [discussions, participants] = await Promise.all([
+    const [discussions, participants, groups] = await Promise.all([
       listDiscussions(),
       listParticipants(),
+      listGroups(),
     ]);
-    setState(() => ({ loaded: true, error: null, discussions, participants }));
+    setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
   }
@@ -253,6 +261,26 @@ async function removeParticipant(id: string): Promise<void> {
   }));
 }
 
+async function addGroup(g: Omit<ParticipantGroup, "id">): Promise<ParticipantGroup> {
+  const full: ParticipantGroup = { ...g, id: uid("grp-") };
+  await dbPutGroup(full);
+  setState((s) => ({ ...s, groups: [...s.groups, full] }));
+  return full;
+}
+
+async function updateGroup(g: ParticipantGroup): Promise<void> {
+  await dbPutGroup(g);
+  setState((s) => ({
+    ...s,
+    groups: s.groups.map((x) => (x.id === g.id ? g : x)),
+  }));
+}
+
+async function removeGroup(id: string): Promise<void> {
+  await deleteGroupById(id);
+  setState((s) => ({ ...s, groups: s.groups.filter((x) => x.id !== id) }));
+}
+
 async function addNote(id: string, text: string) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current || !text.trim()) return;
@@ -299,6 +327,7 @@ export function useStore() {
     error: snap.error,
     discussions: snap.discussions,
     participants: snap.participants,
+    groups: snap.groups,
     lookupParticipant,
     createDiscussion,
     updateDiscussion,
@@ -308,6 +337,9 @@ export function useStore() {
     addParticipant,
     updateParticipant,
     removeParticipant,
+    addGroup,
+    updateGroup,
+    removeGroup,
     addNote,
     clearAll,
     reload: load,
