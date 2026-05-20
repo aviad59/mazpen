@@ -22,6 +22,7 @@ interface DiscussionRow {
   name: string;
   status: DiscussionStatus;
   date_window: DateWindow;
+  scheduled_week: string | null;
   participant_ids: string[];
   extra_participants: string[] | null;
   leader_id: string;
@@ -55,6 +56,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     name: r.name,
     status: r.status,
     dateWindow: r.date_window ?? "unspecified",
+    scheduledWeek: r.scheduled_week ?? undefined,
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
     leaderId: r.leader_id,
@@ -75,6 +77,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     name: d.name,
     status: d.status,
     date_window: d.dateWindow,
+    scheduled_week: d.scheduledWeek ?? null,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
     leader_id: d.leaderId,
@@ -128,7 +131,7 @@ export function createSupabaseRepo(url: string, anonKey: string): Repository {
     kind: "supabase",
 
     async listDiscussions() {
-      const { data, error } = await client.from("discussions").select("id,name,status,date_window,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,notes,summary,history,created_at,updated_at");
+      const { data, error } = await client.from("discussions").select("id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,notes,summary,history,created_at,updated_at");
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },

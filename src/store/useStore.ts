@@ -27,7 +27,7 @@ import {
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
 import { WINDOW_LABEL } from "@/lib/he";
-import { uid } from "@/lib/utils";
+import { uid, scheduledWeekForWindow } from "@/lib/utils";
 
 interface State {
   loaded: boolean;
@@ -167,11 +167,13 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     throw new Error("המוביל חייב להיות אחד מהמשתתפים");
   }
   const nowIso = new Date().toISOString();
+  const resolvedWindow = input.dateWindow ?? "this_week";
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
     status: "scheduled",
-    dateWindow: input.dateWindow ?? "this_week",
+    dateWindow: resolvedWindow,
+    scheduledWeek: scheduledWeekForWindow(resolvedWindow),
     participantIds: input.participantIds,
     leaderId: input.leaderId,
     requiresSummary: input.requiresSummary ?? true,
@@ -202,7 +204,12 @@ async function updateDiscussion(
 ) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current) return;
-  const merged: Discussion = { ...current, ...patch };
+  // When dateWindow changes, recompute scheduledWeek so sections stay dynamic.
+  const resolvedPatch =
+    patch.dateWindow !== undefined && patch.scheduledWeek === undefined
+      ? { ...patch, scheduledWeek: scheduledWeekForWindow(patch.dateWindow) }
+      : patch;
+  const merged: Discussion = { ...current, ...resolvedPatch };
   const evt = reason ? buildEvent(reason.kind, reason.text, reason.meta) : undefined;
   await upsert(merged, evt);
 }
@@ -225,7 +232,7 @@ async function setDateWindow(id: string, w: DateWindow) {
   if (!current) return;
   if (current.dateWindow === w) return;
   await upsert(
-    { ...current, dateWindow: w },
+    { ...current, dateWindow: w, scheduledWeek: scheduledWeekForWindow(w) },
     buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, {
       from: current.dateWindow,
       to: w,
