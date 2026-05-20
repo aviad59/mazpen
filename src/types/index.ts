@@ -54,6 +54,12 @@ export interface Participant {
   external?: boolean;
 }
 
+export interface ParticipantGroup {
+  id: string;
+  name: string;
+  participantIds: string[];
+}
+
 export type HistoryKind =
   | "created"
   | "status_changed"
@@ -98,6 +104,14 @@ export interface Discussion {
 
   /** How often the discussion repeats. Defaults to `none` (one-off). */
   recurrence: Recurrence;
+
+  /**
+   * The Monday (ISO date "YYYY-MM-DD") of the week this discussion is targeting.
+   * Computed automatically from dateWindow at creation/update time so sections
+   * advance dynamically as weeks pass (e.g. "next week" becomes "this week").
+   * Absent on legacy records — falls back to the static dateWindow value.
+   */
+  scheduledWeek?: string;
 
   notes?: string;
   summary?: string;

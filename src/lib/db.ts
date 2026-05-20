@@ -3,7 +3,7 @@
  * Components and the store import only from here.
  */
 
-import type { Discussion, Participant } from "@/types";
+import type { Discussion, Participant, ParticipantGroup } from "@/types";
 import { getRepo } from "./repo";
 
 export function listDiscussions(): Promise<Discussion[]> {
@@ -28,6 +28,18 @@ export function putParticipant(p: Participant): Promise<void> {
 
 export function deleteParticipantById(id: string): Promise<void> {
   return getRepo().deleteParticipant(id);
+}
+
+export function listGroups(): Promise<ParticipantGroup[]> {
+  return getRepo().listGroups();
+}
+
+export function putGroup(g: ParticipantGroup): Promise<void> {
+  return getRepo().putGroup(g);
+}
+
+export function deleteGroupById(id: string): Promise<void> {
+  return getRepo().deleteGroup(id);
 }
 
 /** Wipes ALL data (discussions + participants). No re-seed. */

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { DateWindow, DashboardSection } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -60,4 +61,47 @@ export function relativeTimeHe(iso: string): string {
 /** Sort by createdAt descending. */
 export function byCreatedDesc<T extends { createdAt: string }>(a: T, b: T) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
+/** Return the ISO date string ("YYYY-MM-DD") for the Sunday that starts the
+ *  week `offsetWeeks` from today (0 = this week, 1 = next week, …).
+ *  Week starts on Sunday (Israeli work week: Sun–Thu/Fri). */
+export function getWeekStart(offsetWeeks = 0): string {
+  const d = new Date();
+  // Shift back to Sunday: getDay() 0=Sun, so subtract getDay() days.
+  d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
+  return d.toISOString().split("T")[0];
+}
+
+/** Compute the concrete target week-start (Sunday) for a DateWindow choice. */
+export function scheduledWeekForWindow(w: DateWindow): string | undefined {
+  if (w === "this_week") return getWeekStart(0);
+  if (w === "next_week") return getWeekStart(1);
+  if (w === "later") return getWeekStart(2);
+  return undefined; // unspecified — no concrete week
+}
+
+/**
+ * Derive the effective DashboardSection for a scheduled discussion from its
+ * stored scheduledWeek (dynamic) or dateWindow (static fallback).
+ */
+export function effectiveScheduledSection(
+  dateWindow: DateWindow,
+  scheduledWeek: string | undefined
+): DashboardSection {
+  if (!scheduledWeek) {
+    // Legacy / unspecified: use stored value directly.
+    if (dateWindow === "this_week") return "this_week";
+    if (dateWindow === "next_week") return "next_week";
+    if (dateWindow === "later") return "later";
+    return "unspecified";
+  }
+
+  const targetMs = new Date(scheduledWeek).getTime();
+  const currentSunday = new Date(getWeekStart(0)).getTime();
+  const diffDays = Math.round((targetMs - currentSunday) / 86_400_000);
+
+  if (diffDays <= 0) return "this_week";  // this week or overdue
+  if (diffDays <= 7) return "next_week";
+  return "later";
 }

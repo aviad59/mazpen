@@ -11,25 +11,30 @@ import type {
   HistoryEvent,
   HistoryKind,
   Participant,
+  ParticipantGroup,
 } from "@/types";
 import {
   clearAllData,
   deleteDiscussion as dbDelete,
+  deleteGroupById,
   deleteParticipantById,
   listDiscussions,
+  listGroups,
   listParticipants,
   putDiscussion as dbPut,
+  putGroup as dbPutGroup,
   putParticipant as dbPutParticipant,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
 import { WINDOW_LABEL } from "@/lib/he";
-import { uid } from "@/lib/utils";
+import { uid, scheduledWeekForWindow } from "@/lib/utils";
 
 interface State {
   loaded: boolean;
   error: string | null;
   discussions: Discussion[];
   participants: Participant[];
+  groups: ParticipantGroup[];
 }
 
 let state: State = {
@@ -37,6 +42,7 @@ let state: State = {
   error: null,
   discussions: [],
   participants: [],
+  groups: [],
 };
 const listeners = new Set<() => void>();
 
@@ -57,15 +63,17 @@ async function load() {
         "Supabase לא הוגדר. הוסף VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY לקובץ .env והפעל מחדש.",
       discussions: [],
       participants: [],
+      groups: [],
     }));
     return;
   }
   try {
-    const [discussions, participants] = await Promise.all([
+    const [discussions, participants, groups] = await Promise.all([
       listDiscussions(),
       listParticipants(),
+      listGroups(),
     ]);
-    setState(() => ({ loaded: true, error: null, discussions, participants }));
+    setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
   }
@@ -159,11 +167,13 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     throw new Error("המוביל חייב להיות אחד מהמשתתפים");
   }
   const nowIso = new Date().toISOString();
+  const resolvedWindow = input.dateWindow ?? "this_week";
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
     status: "scheduled",
-    dateWindow: input.dateWindow ?? "this_week",
+    dateWindow: resolvedWindow,
+    scheduledWeek: scheduledWeekForWindow(resolvedWindow),
     participantIds: input.participantIds,
     leaderId: input.leaderId,
     requiresSummary: input.requiresSummary ?? true,
@@ -194,7 +204,12 @@ async function updateDiscussion(
 ) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current) return;
-  const merged: Discussion = { ...current, ...patch };
+  // When dateWindow changes, recompute scheduledWeek so sections stay dynamic.
+  const resolvedPatch =
+    patch.dateWindow !== undefined && patch.scheduledWeek === undefined
+      ? { ...patch, scheduledWeek: scheduledWeekForWindow(patch.dateWindow) }
+      : patch;
+  const merged: Discussion = { ...current, ...resolvedPatch };
   const evt = reason ? buildEvent(reason.kind, reason.text, reason.meta) : undefined;
   await upsert(merged, evt);
 }
@@ -217,7 +232,7 @@ async function setDateWindow(id: string, w: DateWindow) {
   if (!current) return;
   if (current.dateWindow === w) return;
   await upsert(
-    { ...current, dateWindow: w },
+    { ...current, dateWindow: w, scheduledWeek: scheduledWeekForWindow(w) },
     buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, {
       from: current.dateWindow,
       to: w,
@@ -251,6 +266,26 @@ async function removeParticipant(id: string): Promise<void> {
     ...s,
     participants: s.participants.filter((x) => x.id !== id),
   }));
+}
+
+async function addGroup(g: Omit<ParticipantGroup, "id">): Promise<ParticipantGroup> {
+  const full: ParticipantGroup = { ...g, id: uid("grp-") };
+  await dbPutGroup(full);
+  setState((s) => ({ ...s, groups: [...s.groups, full] }));
+  return full;
+}
+
+async function updateGroup(g: ParticipantGroup): Promise<void> {
+  await dbPutGroup(g);
+  setState((s) => ({
+    ...s,
+    groups: s.groups.map((x) => (x.id === g.id ? g : x)),
+  }));
+}
+
+async function removeGroup(id: string): Promise<void> {
+  await deleteGroupById(id);
+  setState((s) => ({ ...s, groups: s.groups.filter((x) => x.id !== id) }));
 }
 
 async function addNote(id: string, text: string) {
@@ -299,6 +334,7 @@ export function useStore() {
     error: snap.error,
     discussions: snap.discussions,
     participants: snap.participants,
+    groups: snap.groups,
     lookupParticipant,
     createDiscussion,
     updateDiscussion,
@@ -308,6 +344,9 @@ export function useStore() {
     addParticipant,
     updateParticipant,
     removeParticipant,
+    addGroup,
+    updateGroup,
+    removeGroup,
     addNote,
     clearAll,
     reload: load,
