@@ -16,7 +16,7 @@ export const HOME_UNIT = "מצפן";
 
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {
   scheduled: "מתוכנן",
-  occurred: "התקיים",
+  occurred: "זומן",
   waiting_summary: "ממתין לסיכום",
   waiting_approval: "ממתין לאישור",
   waiting_distribution: "ממתין להפצה",
@@ -83,7 +83,7 @@ export const T = {
   edit: "עריכה",
   back: "חזרה",
   window: "מסגרת זמן",
-  markOccurred: "סמן כהתקיים",
+  markOccurred: "סמן כזומן",
   startSummary: "התחל סיכום",
   approveSummary: "אשר סיכום",
   markDistributed: "סמן כהופץ",

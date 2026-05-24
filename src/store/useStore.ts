@@ -68,11 +68,13 @@ async function load() {
     return;
   }
   try {
-    const [discussions, participants, groups] = await Promise.all([
+    const [discussions, participants] = await Promise.all([
       listDiscussions(),
       listParticipants(),
-      listGroups(),
     ]);
+    // Groups table may not exist yet — load it separately so a missing table
+    // doesn't block the rest of the app.
+    const groups = await listGroups().catch(() => []);
     setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
@@ -303,7 +305,7 @@ function statusLabelFor(s: DiscussionStatus): string {
   return (
     {
       scheduled: "מתוכנן",
-      occurred: "התקיים",
+      occurred: "זומן",
       waiting_summary: "ממתין לסיכום",
       waiting_approval: "ממתין לאישור",
       waiting_distribution: "ממתין להפצה",
