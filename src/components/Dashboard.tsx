@@ -13,7 +13,7 @@ import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { useStore } from "@/store/useStore";
 import { SECTION_HINT, SECTION_LABEL, T } from "@/lib/he";
-import { byCreatedDesc } from "@/lib/utils";
+import { byCreatedDesc, effectiveScheduledSection } from "@/lib/utils";
 import type { DashboardSection, Discussion } from "@/types";
 
 interface Props {
@@ -45,11 +45,9 @@ function bucketize(discussions: Discussion[]) {
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
     if (d.status === "scheduled") {
-      // Scheduled discussions split by their date window
-      if (d.dateWindow === "this_week") buckets.this_week.push(d);
-      else if (d.dateWindow === "next_week") buckets.next_week.push(d);
-      else if (d.dateWindow === "later") buckets.later.push(d);
-      else buckets.unspecified.push(d);
+      // Compute section dynamically from scheduledWeek so it advances over time.
+      const section = effectiveScheduledSection(d.dateWindow, d.scheduledWeek);
+      buckets[section].push(d);
     } else if (d.status === "occurred" || d.status === "waiting_summary") {
       buckets.waiting_summary.push(d);
     } else if (d.status === "waiting_approval") {

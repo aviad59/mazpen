@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search, Plus, Check, X } from "lucide-react";
+import { Search, Plus, Check, X, Users } from "lucide-react";
 import { Input } from "./ui/Input";
 import { Avatar } from "./ui/Avatar";
 import { Chip } from "./ui/Chip";
@@ -7,7 +7,7 @@ import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { cn } from "@/lib/utils";
 import { HOME_UNIT } from "@/lib/he";
-import type { Participant } from "@/types";
+import type { Participant, ParticipantGroup } from "@/types";
 
 interface CreateInput {
   name: string;
@@ -18,6 +18,7 @@ interface CreateInput {
 
 interface Props {
   participants: Participant[];
+  groups?: ParticipantGroup[];
   value: string[];
   onChange: (next: string[]) => void;
   /** Create-and-select handler; receives full role + unit when available. */
@@ -33,6 +34,7 @@ interface Props {
  */
 export function ParticipantPicker({
   participants,
+  groups = [],
   value,
   onChange,
   onCreate,
@@ -48,6 +50,12 @@ export function ParticipantPicker({
     .map((id) => participants.find((p) => p.id === id))
     .filter((p): p is Participant => !!p);
 
+  const filteredGroups = React.useMemo(() => {
+    const q = query.trim();
+    if (!q) return groups;
+    return groups.filter((g) => g.name.includes(q));
+  }, [groups, query]);
+
   const filtered = React.useMemo(() => {
     const q = query.trim();
     if (!q) return participants;
@@ -58,6 +66,11 @@ export function ParticipantPicker({
         (p.unit && p.unit.includes(q))
     );
   }, [participants, query]);
+
+  function addGroup(g: ParticipantGroup) {
+    const toAdd = g.participantIds.filter((id) => !value.includes(id));
+    if (toAdd.length > 0) onChange([...value, ...toAdd]);
+  }
 
   const toggle = (id: string) => {
     if (value.includes(id)) onChange(value.filter((v) => v !== id));
@@ -179,7 +192,7 @@ export function ParticipantPicker({
           className="overflow-y-auto scrollbar-thin rounded-lg border border-border bg-card"
           style={{ maxHeight }}
         >
-          {filtered.length === 0 ? (
+          {filteredGroups.length === 0 && filtered.length === 0 ? (
             <div className="p-3 text-sm text-muted-foreground">
               <p>לא נמצאו משתתפים מתאימים.</p>
               {onCreate && query.trim() && (
@@ -196,6 +209,32 @@ export function ParticipantPicker({
             </div>
           ) : (
             <ul className="divide-y divide-border">
+              {filteredGroups.map((g) => {
+                const memberCount = g.participantIds.length;
+                const alreadyAll = g.participantIds.every((id) => value.includes(id));
+                return (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() => addGroup(g)}
+                      disabled={alreadyAll}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-2.5 text-right hover:bg-muted/70 transition-colors",
+                        alreadyAll && "opacity-50 cursor-default"
+                      )}
+                    >
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
+                        <Users size={14} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{g.name}</div>
+                        <div className="text-xs text-muted-foreground">{memberCount} משתתפים</div>
+                      </div>
+                      <Badge tone="info">קבוצה</Badge>
+                    </button>
+                  </li>
+                );
+              })}
               {filtered.map((p) => {
                 const isOn = value.includes(p.id);
                 const isExternal = !!p.unit && p.unit !== HOME_UNIT;

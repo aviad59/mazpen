@@ -8,17 +8,20 @@
  * the App shell renders a friendly "configure Supabase" screen.
  */
 
-import type { Discussion, Participant } from "@/types";
+import type { Discussion, Participant, ParticipantGroup } from "@/types";
 import { createSupabaseRepo } from "./supabaseRepo";
 
 export interface Repository {
   readonly kind: "supabase";
   listDiscussions(): Promise<Discussion[]>;
   listParticipants(): Promise<Participant[]>;
+  listGroups(): Promise<ParticipantGroup[]>;
   putDiscussion(d: Discussion): Promise<void>;
   deleteDiscussion(id: string): Promise<void>;
   putParticipant(p: Participant): Promise<void>;
   deleteParticipant(id: string): Promise<void>;
+  putGroup(g: ParticipantGroup): Promise<void>;
+  deleteGroup(id: string): Promise<void>;
   reset(): Promise<void>;
 }
 
