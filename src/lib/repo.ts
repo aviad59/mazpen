@@ -1,13 +1,3 @@
-/**
- * Repository abstraction — single Supabase backend.
- *
- * The app talks to Postgres via @supabase/supabase-js. Both env vars
- * (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) must be set in .env.
- *
- * If they aren't, `getRepo()` throws; the store catches the error and
- * the App shell renders a friendly "configure Supabase" screen.
- */
-
 import type { Discussion, Participant, ParticipantGroup } from "@/types";
 import { createSupabaseRepo } from "./supabaseRepo";
 
@@ -30,9 +20,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefine
 
 export class SupabaseNotConfiguredError extends Error {
   constructor() {
-    super(
-      "חיבור ל-Supabase לא הוגדר — חסרים VITE_SUPABASE_URL ו/או VITE_SUPABASE_ANON_KEY בקובץ .env"
-    );
+    super("חיבור ל-Supabase לא הוגדר — חסרים VITE_SUPABASE_URL ו/או VITE_SUPABASE_ANON_KEY בקובץ .env");
     this.name = "SupabaseNotConfiguredError";
   }
 }
@@ -41,12 +29,9 @@ let _repo: Repository | null = null;
 
 export function getRepo(): Repository {
   if (_repo) return _repo;
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    throw new SupabaseNotConfiguredError();
-  }
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw new SupabaseNotConfiguredError();
   _repo = createSupabaseRepo(SUPABASE_URL, SUPABASE_KEY);
   return _repo;
 }
 
-/** True when both env vars are present (the App can probe before using the repo). */
 export const isBackendConfigured = !!(SUPABASE_URL && SUPABASE_KEY);

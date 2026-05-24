@@ -17,6 +17,7 @@ export interface EditState {
   requiresSummary: boolean;
   requiresSubstrate: boolean;
   recurrence: Recurrence;
+  durationMinutes?: number;
 }
 
 interface Props {
@@ -26,11 +27,8 @@ interface Props {
 }
 
 export function DiscussionEditForm({ discussion, state, onChange }: Props) {
-  const { participants, addParticipant, changeStatus } = useStore();
+  const { participants, groups, addParticipant, changeStatus } = useStore();
 
-  // Auto-default leader to the first participant whenever the leader becomes
-  // empty or falls out of the participant list (e.g. after a participant
-  // removal). The leader is required — never let the form sit without one.
   React.useEffect(() => {
     if (state.participantIds.length === 0) return;
     if (!state.leaderId || !state.participantIds.includes(state.leaderId)) {
@@ -52,24 +50,20 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
 
       <div>
         <Label>{T.window}</Label>
-        <DateWindowPicker
-          value={state.dateWindow}
-          onChange={(v) => onChange({ dateWindow: v })}
-        />
+        <DateWindowPicker value={state.dateWindow} onChange={(v) => onChange({ dateWindow: v })} />
       </div>
 
       <div>
         <Label>{T.participants} *</Label>
         <ParticipantPicker
           participants={participants}
+          groups={groups}
           value={state.participantIds}
           onChange={(ids) => onChange({ participantIds: ids })}
           onCreate={addParticipant}
         />
         {state.participantIds.length === 0 && (
-          <p className="text-[11px] text-destructive mt-1">
-            דיון חייב לכלול לפחות משתתף אחד.
-          </p>
+          <p className="text-[11px] text-destructive mt-1">דיון חייב לכלול לפחות משתתף אחד.</p>
         )}
       </div>
 
@@ -85,6 +79,21 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       )}
 
       <div>
+        <Label>משך הדיון (דקות)</Label>
+        <Input
+          type="number"
+          min={1}
+          max={480}
+          value={state.durationMinutes?.toString() ?? ""}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            onChange({ durationMinutes: v ? parseInt(v, 10) : undefined });
+          }}
+          placeholder="לדוגמה: 60"
+        />
+      </div>
+
+      <div>
         <Label>{T.notes}</Label>
         <Textarea
           value={state.notes}
@@ -94,16 +103,8 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       </div>
 
       <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-        <Switch
-          checked={state.requiresSummary}
-          onChange={(v) => onChange({ requiresSummary: v })}
-          label={T.requiresSummary}
-        />
-        <Switch
-          checked={state.requiresSubstrate}
-          onChange={(v) => onChange({ requiresSubstrate: v })}
-          label={T.requiresSubstrate}
-        />
+        <Switch checked={state.requiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} />
+        <Switch checked={state.requiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} />
       </div>
 
       <div>
@@ -122,9 +123,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
         <Label>סטטוס (לעריכה ישירה)</Label>
         <Select
           value={discussion.status}
-          onChange={(e) =>
-            changeStatus(discussion.id, e.target.value as DiscussionStatus)
-          }
+          onChange={(e) => changeStatus(discussion.id, e.target.value as DiscussionStatus)}
           options={(Object.keys(STATUS_LABEL) as DiscussionStatus[])
             .filter((s) => s !== "cancelled")
             .map((s) => ({ value: s, label: STATUS_LABEL[s] }))}

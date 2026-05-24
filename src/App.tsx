@@ -8,10 +8,13 @@ import { QuickAddSheet } from "./components/QuickAddSheet";
 import { DiscussionDetail } from "./components/DiscussionDetail";
 import { ParticipantsSheet } from "./components/ParticipantsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
+import { LoginScreen } from "./components/LoginScreen";
 import { useStore } from "./store/useStore";
+import { useAuth } from "./lib/useAuth";
 import type { Discussion } from "./types";
 
 export default function App() {
+  const { user, signInWithGoogle, signOut } = useAuth();
   const { discussions, error, clearAll, reload } = useStore();
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
@@ -19,13 +22,26 @@ export default function App() {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
+  // Auth loading state
+  if (user === undefined) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">טוען...</div>
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (user === null) {
+    return <LoginScreen onSignIn={signInWithGoogle} />;
+  }
+
   if (error) {
     return <BackendErrorScreen error={error} onRetry={() => reload()} />;
   }
 
   const openDiscussion = discussions.find((d) => d.id === openId) ?? null;
 
-  // "Needs a time bucket" indicator — scheduled but no window chosen
   const pendingScheduling = discussions.filter(
     (d) => d.status === "scheduled" && d.dateWindow === "unspecified"
   ).length;
@@ -62,6 +78,8 @@ export default function App() {
         onOpenParticipants={() => setParticipantsOpen(true)}
         onClearAll={handleClearAll}
         pendingScheduling={pendingScheduling}
+        onSignOut={signOut}
+        userEmail={user.email}
       />
 
       <main className="flex-1 max-w-xl w-full mx-auto">

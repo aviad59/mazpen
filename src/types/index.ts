@@ -4,12 +4,13 @@
 
 /**
  * Coarse scheduling window — the secretary picks a bucket, not a specific day.
- *  - this_week: should happen this calendar week
- *  - next_week: should happen next calendar week
- *  - later:     beyond next week
+ *  - this_week:  should happen this calendar week
+ *  - next_week:  should happen next calendar week
+ *  - later:      2 weeks to ~1 month out
+ *  - in_a_month: beyond ~1 month
  *  - unspecified: not yet known / no urgency
  */
-export type DateWindow = "this_week" | "next_week" | "later" | "unspecified";
+export type DateWindow = "this_week" | "next_week" | "later" | "in_a_month" | "unspecified";
 
 /**
  * How often the discussion repeats. `none` is a one-off.
@@ -39,6 +40,7 @@ export type DashboardSection =
   | "next_week"
   | "unspecified"
   | "later"
+  | "in_a_month"
   | "waiting_summary"
   | "waiting_approval"
   | "waiting_distribution"
@@ -52,6 +54,12 @@ export interface Participant {
   /** Unit the participant belongs to. "מצפן" = home (internal). */
   unit?: string;
   external?: boolean;
+}
+
+export interface ParticipantGroup {
+  id: string;
+  name: string;
+  participantIds: string[];
 }
 
 export type HistoryKind =
@@ -99,11 +107,18 @@ export interface Discussion {
   /** How often the discussion repeats. Defaults to `none` (one-off). */
   recurrence: Recurrence;
 
+  /**
+   * The Monday (ISO date "YYYY-MM-DD") of the week when this discussion is scheduled.
+   * Computed from `dateWindow` and stored for stable bucketing.
+   */
+  scheduledWeek?: string;
+
+  /** Duration of the discussion in minutes (optional). */
+  durationMinutes?: number;
+
   notes?: string;
   summary?: string;
-
   history: HistoryEvent[];
-
   createdAt: string;
   updatedAt: string;
 }

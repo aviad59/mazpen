@@ -25,6 +25,7 @@ const SECTION_ICON: Record<DashboardSection, React.ReactNode> = {
   next_week: <CalendarRange size={28} />,
   unspecified: <HelpCircle size={28} />,
   later: <Clock size={28} />,
+  in_a_month: <Clock size={28} />,
   waiting_summary: <FileText size={28} />,
   waiting_approval: <Stamp size={28} />,
   waiting_distribution: <Send size={28} />,
@@ -37,6 +38,7 @@ function bucketize(discussions: Discussion[]) {
     next_week: [],
     unspecified: [],
     later: [],
+    in_a_month: [],
     waiting_summary: [],
     waiting_approval: [],
     waiting_distribution: [],
@@ -45,7 +47,6 @@ function bucketize(discussions: Discussion[]) {
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
     if (d.status === "scheduled") {
-      // Compute section dynamically from scheduledWeek so it advances over time.
       const section = effectiveScheduledSection(d.dateWindow, d.scheduledWeek);
       buckets[section].push(d);
     } else if (d.status === "occurred" || d.status === "waiting_summary") {
@@ -59,11 +60,11 @@ function bucketize(discussions: Discussion[]) {
     }
   }
 
-  // Sort each bucket
   buckets.this_week.sort(byCreatedDesc);
   buckets.next_week.sort(byCreatedDesc);
   buckets.unspecified.sort(byCreatedDesc);
   buckets.later.sort(byCreatedDesc);
+  buckets.in_a_month.sort(byCreatedDesc);
   buckets.waiting_summary.sort(byCreatedDesc);
   buckets.waiting_approval.sort(byCreatedDesc);
   buckets.waiting_distribution.sort(byCreatedDesc);
@@ -73,7 +74,6 @@ function bucketize(discussions: Discussion[]) {
   return buckets;
 }
 
-/** Top-of-dashboard order — most operationally urgent first. */
 const SECTIONS: { key: DashboardSection; alert?: boolean; limit?: number }[] = [
   { key: "this_week", alert: true },
   { key: "next_week" },
@@ -82,6 +82,7 @@ const SECTIONS: { key: DashboardSection; alert?: boolean; limit?: number }[] = [
   { key: "waiting_approval" },
   { key: "waiting_distribution" },
   { key: "later" },
+  { key: "in_a_month" },
   { key: "completed", limit: 5 },
 ];
 
@@ -137,7 +138,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                     discussion={d}
                     lookupParticipant={lookupParticipant}
                     onOpen={onOpenDiscussion}
-                    compact={key === "completed" || key === "later"}
+                    compact={key === "completed" || key === "later" || key === "in_a_month"}
                   />
                 ))}
               </div>

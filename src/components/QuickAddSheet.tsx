@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
-  const { participants, addParticipant, createDiscussion } = useStore();
+  const { participants, groups, addParticipant, createDiscussion } = useStore();
 
   const [name, setName] = React.useState("");
   const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
@@ -29,7 +29,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [requiresSubstrate, setRequiresSubstrate] = React.useState(true);
   const [recurrence, setRecurrence] = React.useState<Recurrence>("none");
   const [notes, setNotes] = React.useState("");
-  const [showAdvanced, setShowAdvanced] = React.useState(false);
+  const [durationMinutes, setDurationMinutes] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const nameRef = React.useRef<HTMLInputElement>(null);
 
@@ -43,12 +43,10 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setRequiresSubstrate(template?.requiresSubstrate ?? true);
     setRecurrence(template?.recurrence ?? "none");
     setNotes(template?.notes ?? "");
-    setShowAdvanced(false);
+    setDurationMinutes(template?.durationMinutes?.toString() ?? "");
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
-  // Auto-default the leader to the first participant whenever the leader is
-  // empty or no longer in the participant list. Leader is required.
   React.useEffect(() => {
     if (participantIds.length === 0) return;
     if (!leaderId || !participantIds.includes(leaderId)) {
@@ -59,6 +57,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const hasParticipants = participantIds.length > 0;
   const hasLeader = !!leaderId && participantIds.includes(leaderId);
   const canSubmit = !!name.trim() && hasParticipants && hasLeader && !submitting;
+
+  const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -73,6 +73,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         requiresSummary,
         requiresSubstrate,
         recurrence,
+        durationMinutes: parsedDuration && !isNaN(parsedDuration) ? parsedDuration : undefined,
         notes: notes.trim() || undefined,
       });
       onCreated?.(created);
@@ -102,12 +103,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           <Button type="button" variant="ghost" onClick={onClose} className="flex-1">
             {T.cancel}
           </Button>
-          <Button
-            type="button"
-            onClick={() => handleSubmit()}
-            disabled={!canSubmit}
-            className="flex-[2]"
-          >
+          <Button type="button" onClick={() => handleSubmit()} disabled={!canSubmit} className="flex-[2]">
             {submitting ? "שומר..." : T.create}
           </Button>
         </div>
@@ -135,6 +131,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           <Label>{T.participants} *</Label>
           <ParticipantPicker
             participants={participants}
+            groups={groups}
             value={participantIds}
             onChange={setParticipantIds}
             onCreate={addParticipant}
@@ -154,23 +151,24 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
               onChange={(e) => setLeaderId(e.target.value)}
               options={leaderOptions}
             />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              ברירת מחדל: המשתתף הראשון שנוסף.
-            </p>
           </div>
         )}
 
+        <div>
+          <Label>משך הדיון (דקות)</Label>
+          <Input
+            type="number"
+            min={1}
+            max={480}
+            value={durationMinutes}
+            onChange={(e) => setDurationMinutes(e.target.value)}
+            placeholder="לדוגמה: 60"
+          />
+        </div>
+
         <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-          <Switch
-            checked={requiresSummary}
-            onChange={setRequiresSummary}
-            label={T.requiresSummary}
-          />
-          <Switch
-            checked={requiresSubstrate}
-            onChange={setRequiresSubstrate}
-            label={T.requiresSubstrate}
-          />
+          <Switch checked={requiresSummary} onChange={setRequiresSummary} label={T.requiresSummary} />
+          <Switch checked={requiresSubstrate} onChange={setRequiresSubstrate} label={T.requiresSubstrate} />
         </div>
 
         <div>
@@ -185,27 +183,15 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           />
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowAdvanced((s) => !s)}
-          className="text-sm text-accent font-medium hover:opacity-80"
-        >
-          {showAdvanced ? "− הסתר מתקדם" : "+ אפשרויות מתקדמות"}
-        </button>
-
-        {showAdvanced && (
-          <div className="space-y-4 pt-2 border-t border-border">
-            <div>
-              <Label>{T.notes}</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="הקשר / נושא / הערות..."
-                rows={3}
-              />
-            </div>
-          </div>
-        )}
+        <div>
+          <Label>{T.notes}</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="הקשר / נושא / הערות..."
+            rows={3}
+          />
+        </div>
       </form>
     </Sheet>
   );

@@ -1,4 +1,4 @@
-import { Compass, Plus, Search, Trash2, Users } from "lucide-react";
+import { Compass, LogOut, Plus, Search, Trash2, Users } from "lucide-react";
 import { Button } from "./ui/Button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/he";
 
@@ -8,6 +8,8 @@ interface Props {
   onOpenParticipants: () => void;
   onClearAll: () => void;
   pendingScheduling: number;
+  onSignOut?: () => void;
+  userEmail?: string;
 }
 
 export function TopBar({
@@ -16,6 +18,8 @@ export function TopBar({
   onOpenParticipants,
   onClearAll,
   pendingScheduling,
+  onSignOut,
+  userEmail,
 }: Props) {
   return (
     <header className="sticky top-0 z-30 glass border-b border-border safe-top">
@@ -63,6 +67,16 @@ export function TopBar({
         >
           <Trash2 size={16} />
         </button>
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            className="rounded-lg p-2 hover:bg-muted no-tap-highlight text-muted-foreground"
+            aria-label="התנתק"
+            title={userEmail ? `התנתק (${userEmail})` : "התנתק"}
+          >
+            <LogOut size={16} />
+          </button>
+        )}
         <Button size="sm" onClick={onAdd} className="rounded-lg">
           <Plus size={16} />
           <span className="hidden sm:inline">דיון</span>

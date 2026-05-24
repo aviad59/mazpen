@@ -19,6 +19,7 @@ const QUICK_OPTIONS: { key: Quick; label: string }[] = [
   { key: "this_week", label: WINDOW_LABEL.this_week },
   { key: "next_week", label: WINDOW_LABEL.next_week },
   { key: "later", label: WINDOW_LABEL.later },
+  { key: "in_a_month", label: WINDOW_LABEL.in_a_month },
   { key: "unspecified", label: WINDOW_LABEL.unspecified },
   { key: "waiting_summary", label: STATUS_LABEL.waiting_summary },
   { key: "waiting_approval", label: STATUS_LABEL.waiting_approval },
@@ -26,7 +27,7 @@ const QUICK_OPTIONS: { key: Quick; label: string }[] = [
   { key: "completed", label: STATUS_LABEL.completed },
 ];
 
-const WINDOW_KEYS = new Set<Quick>(["this_week", "next_week", "later", "unspecified"]);
+const WINDOW_KEYS = new Set<Quick>(["this_week", "next_week", "later", "in_a_month", "unspecified"]);
 const STATUS_KEYS = new Set<Quick>([
   "waiting_summary",
   "waiting_approval",

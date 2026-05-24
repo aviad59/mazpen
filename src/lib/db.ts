@@ -14,6 +14,10 @@ export function listParticipants(): Promise<Participant[]> {
   return getRepo().listParticipants();
 }
 
+export function listGroups(): Promise<ParticipantGroup[]> {
+  return getRepo().listGroups();
+}
+
 export function putDiscussion(d: Discussion): Promise<void> {
   return getRepo().putDiscussion(d);
 }
@@ -30,11 +34,7 @@ export function deleteParticipantById(id: string): Promise<void> {
   return getRepo().deleteParticipant(id);
 }
 
-export function listGroups(): Promise<ParticipantGroup[]> {
-  return getRepo().listGroups();
-}
-
-export function putGroup(g: ParticipantGroup): Promise<void> {
+export function putGroup(g: import("@/types").ParticipantGroup): Promise<void> {
   return getRepo().putGroup(g);
 }
 

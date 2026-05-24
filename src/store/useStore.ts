@@ -11,25 +11,30 @@ import type {
   HistoryEvent,
   HistoryKind,
   Participant,
+  ParticipantGroup,
 } from "@/types";
 import {
   clearAllData,
   deleteDiscussion as dbDelete,
+  deleteGroupById,
   deleteParticipantById,
   listDiscussions,
+  listGroups,
   listParticipants,
   putDiscussion as dbPut,
+  putGroup as dbPutGroup,
   putParticipant as dbPutParticipant,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
 import { WINDOW_LABEL } from "@/lib/he";
-import { uid } from "@/lib/utils";
+import { uid, scheduledWeekForWindow } from "@/lib/utils";
 
 interface State {
   loaded: boolean;
   error: string | null;
   discussions: Discussion[];
   participants: Participant[];
+  groups: ParticipantGroup[];
 }
 
 let state: State = {
@@ -37,6 +42,7 @@ let state: State = {
   error: null,
   discussions: [],
   participants: [],
+  groups: [],
 };
 const listeners = new Set<() => void>();
 
@@ -57,6 +63,7 @@ async function load() {
         "Supabase לא הוגדר. הוסף VITE_SUPABASE_URL ו-VITE_SUPABASE_ANON_KEY לקובץ .env והפעל מחדש.",
       discussions: [],
       participants: [],
+      groups: [],
     }));
     return;
   }
@@ -65,17 +72,13 @@ async function load() {
       listDiscussions(),
       listParticipants(),
     ]);
-    setState(() => ({ loaded: true, error: null, discussions, participants }));
+    const groups = await listGroups().catch(() => []);
+    setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
   }
 }
 
-/**
- * Best-effort string for any thrown value. Supabase/PostgREST errors are
- * plain objects (not Error instances) shaped like `{ message, details, hint, code }`.
- * Without this helper, `String(err)` would render "[object Object]".
- */
 function formatError(e: unknown): string {
   if (e instanceof Error) return e.message;
   if (typeof e === "string") return e;
@@ -84,11 +87,7 @@ function formatError(e: unknown): string {
     const parts = [obj.message, obj.details, obj.hint, obj.code]
       .filter((v): v is string => typeof v === "string" && v.length > 0);
     if (parts.length > 0) return parts.join(" · ");
-    try {
-      return JSON.stringify(e);
-    } catch {
-      /* fall through */
-    }
+    try { return JSON.stringify(e); } catch { /* fall through */ }
   }
   return String(e);
 }
@@ -106,18 +105,8 @@ function getSnapshot() {
 
 // ----- actions ---------------------------------------------------------
 
-function buildEvent(
-  kind: HistoryKind,
-  text: string,
-  meta?: Record<string, unknown>
-): HistoryEvent {
-  return {
-    id: uid("h-"),
-    kind,
-    at: new Date().toISOString(),
-    text,
-    meta,
-  };
+function buildEvent(kind: HistoryKind, text: string, meta?: Record<string, unknown>): HistoryEvent {
+  return { id: uid("h-"), kind, at: new Date().toISOString(), text, meta };
 }
 
 async function upsert(discussion: Discussion, event?: HistoryEvent) {
@@ -140,45 +129,35 @@ async function upsert(discussion: Discussion, event?: HistoryEvent) {
 
 export type CreateDiscussionInput = {
   name: string;
-  /** Required — every discussion must have a leader. */
   leaderId: string;
-  /** Must include at least the leader. */
   participantIds: string[];
   dateWindow?: DateWindow;
   requiresSummary?: boolean;
   requiresSubstrate?: boolean;
   recurrence?: Discussion["recurrence"];
+  durationMinutes?: number;
   notes?: string;
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
-  if (!input.leaderId) {
-    throw new Error("חובה לבחור מוביל לדיון");
-  }
-  if (!input.participantIds.includes(input.leaderId)) {
-    throw new Error("המוביל חייב להיות אחד מהמשתתפים");
-  }
+  if (!input.leaderId) throw new Error("חובה לבחור מוביל לדיון");
+  if (!input.participantIds.includes(input.leaderId)) throw new Error("המוביל חייב להיות אחד מהמשתתפים");
   const nowIso = new Date().toISOString();
+  const resolvedWindow = input.dateWindow ?? "this_week";
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
     status: "scheduled",
-    dateWindow: input.dateWindow ?? "this_week",
+    dateWindow: resolvedWindow,
+    scheduledWeek: scheduledWeekForWindow(resolvedWindow),
     participantIds: input.participantIds,
     leaderId: input.leaderId,
     requiresSummary: input.requiresSummary ?? true,
     requiresSubstrate: input.requiresSubstrate ?? true,
     recurrence: input.recurrence ?? "none",
+    durationMinutes: input.durationMinutes,
     notes: input.notes,
-    history: [
-      {
-        id: uid("h-"),
-        kind: "created",
-        at: nowIso,
-        text: "הדיון נוצר",
-        by: "מזכירות",
-      },
-    ],
+    history: [{ id: uid("h-"), kind: "created", at: nowIso, text: "הדיון נוצר", by: "מזכירות" }],
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -194,7 +173,11 @@ async function updateDiscussion(
 ) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current) return;
-  const merged: Discussion = { ...current, ...patch };
+  const resolvedPatch =
+    patch.dateWindow !== undefined && patch.scheduledWeek === undefined
+      ? { ...patch, scheduledWeek: scheduledWeekForWindow(patch.dateWindow) }
+      : patch;
+  const merged: Discussion = { ...current, ...resolvedPatch };
   const evt = reason ? buildEvent(reason.kind, reason.text, reason.meta) : undefined;
   await upsert(merged, evt);
 }
@@ -204,11 +187,7 @@ async function changeStatus(id: string, to: DiscussionStatus, by?: string) {
   if (!current) return;
   await upsert(
     { ...current, status: to },
-    buildEvent("status_changed", `סטטוס שונה ל"${statusLabelFor(to)}"`, {
-      from: current.status,
-      to,
-      by,
-    })
+    buildEvent("status_changed", `סטטוס שונה ל"${statusLabelFor(to)}"`, { from: current.status, to, by })
   );
 }
 
@@ -217,11 +196,8 @@ async function setDateWindow(id: string, w: DateWindow) {
   if (!current) return;
   if (current.dateWindow === w) return;
   await upsert(
-    { ...current, dateWindow: w },
-    buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, {
-      from: current.dateWindow,
-      to: w,
-    })
+    { ...current, dateWindow: w, scheduledWeek: scheduledWeekForWindow(w) },
+    buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, { from: current.dateWindow, to: w })
   );
 }
 
@@ -239,18 +215,29 @@ async function addParticipant(p: Omit<Participant, "id">): Promise<Participant> 
 
 async function updateParticipant(p: Participant): Promise<void> {
   await dbPutParticipant(p);
-  setState((s) => ({
-    ...s,
-    participants: s.participants.map((x) => (x.id === p.id ? p : x)),
-  }));
+  setState((s) => ({ ...s, participants: s.participants.map((x) => (x.id === p.id ? p : x)) }));
 }
 
 async function removeParticipant(id: string): Promise<void> {
   await deleteParticipantById(id);
-  setState((s) => ({
-    ...s,
-    participants: s.participants.filter((x) => x.id !== id),
-  }));
+  setState((s) => ({ ...s, participants: s.participants.filter((x) => x.id !== id) }));
+}
+
+async function addGroup(g: Omit<ParticipantGroup, "id">): Promise<ParticipantGroup> {
+  const full: ParticipantGroup = { ...g, id: uid("grp-") };
+  await dbPutGroup(full);
+  setState((s) => ({ ...s, groups: [...s.groups, full] }));
+  return full;
+}
+
+async function updateGroup(g: ParticipantGroup): Promise<void> {
+  await dbPutGroup(g);
+  setState((s) => ({ ...s, groups: s.groups.map((x) => (x.id === g.id ? g : x)) }));
+}
+
+async function removeGroup(id: string): Promise<void> {
+  await deleteGroupById(id);
+  setState((s) => ({ ...s, groups: s.groups.filter((x) => x.id !== id) }));
 }
 
 async function addNote(id: string, text: string) {
@@ -265,17 +252,11 @@ async function clearAll() {
 }
 
 function statusLabelFor(s: DiscussionStatus): string {
-  return (
-    {
-      scheduled: "מתוכנן",
-      occurred: "התקיים",
-      waiting_summary: "ממתין לסיכום",
-      waiting_approval: "ממתין לאישור",
-      waiting_distribution: "ממתין להפצה",
-      completed: "הושלם",
-      cancelled: "בוטל",
-    } as Record<DiscussionStatus, string>
-  )[s];
+  return ({
+    scheduled: "מתוכנן", occurred: "התקיים", waiting_summary: "ממתין לסיכום",
+    waiting_approval: "ממתין לאישור", waiting_distribution: "ממתין להפצה",
+    completed: "הושלם", cancelled: "בוטל",
+  } as Record<DiscussionStatus, string>)[s];
 }
 
 // ----- public hook -----------------------------------------------------
@@ -299,6 +280,7 @@ export function useStore() {
     error: snap.error,
     discussions: snap.discussions,
     participants: snap.participants,
+    groups: snap.groups,
     lookupParticipant,
     createDiscussion,
     updateDiscussion,
@@ -308,6 +290,9 @@ export function useStore() {
     addParticipant,
     updateParticipant,
     removeParticipant,
+    addGroup,
+    updateGroup,
+    removeGroup,
     addNote,
     clearAll,
     reload: load,

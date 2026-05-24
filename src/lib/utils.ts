@@ -63,45 +63,42 @@ export function byCreatedDesc<T extends { createdAt: string }>(a: T, b: T) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
-/** Return the ISO date string ("YYYY-MM-DD") for the Sunday that starts the
- *  week `offsetWeeks` from today (0 = this week, 1 = next week, …).
- *  Week starts on Sunday (Israeli work week: Sun–Thu/Fri). */
-export function getWeekStart(offsetWeeks = 0): string {
+/** Get the ISO Sunday date string for a given week offset from today (0 = this week). */
+export function getWeekStart(offsetWeeks: number): string {
   const d = new Date();
-  // Shift back to Sunday: getDay() 0=Sun, so subtract getDay() days.
   d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
-  return d.toISOString().split("T")[0];
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().slice(0, 10);
 }
 
-/** Compute the concrete target week-start (Sunday) for a DateWindow choice. */
+/**
+ * Derive the ISO Sunday date for a given DateWindow.
+ * Returns undefined for "unspecified".
+ */
 export function scheduledWeekForWindow(w: DateWindow): string | undefined {
   if (w === "this_week") return getWeekStart(0);
   if (w === "next_week") return getWeekStart(1);
   if (w === "later") return getWeekStart(2);
-  return undefined; // unspecified — no concrete week
+  if (w === "in_a_month") return getWeekStart(4);
+  return undefined;
 }
 
 /**
- * Derive the effective DashboardSection for a scheduled discussion from its
- * stored scheduledWeek (dynamic) or dateWindow (static fallback).
+ * Given a discussion's dateWindow and scheduledWeek (ISO date),
+ * return which dashboard section it belongs to.
  */
 export function effectiveScheduledSection(
   dateWindow: DateWindow,
   scheduledWeek: string | undefined
 ): DashboardSection {
-  if (!scheduledWeek) {
-    // Legacy / unspecified: use stored value directly.
-    if (dateWindow === "this_week") return "this_week";
-    if (dateWindow === "next_week") return "next_week";
-    if (dateWindow === "later") return "later";
-    return "unspecified";
-  }
+  if (!scheduledWeek) return dateWindow === "unspecified" ? "unspecified" : (dateWindow as DashboardSection);
 
-  const targetMs = new Date(scheduledWeek).getTime();
-  const currentSunday = new Date(getWeekStart(0)).getTime();
-  const diffDays = Math.round((targetMs - currentSunday) / 86_400_000);
+  const now = new Date();
+  const sw = new Date(scheduledWeek);
+  const diffDays = (sw.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
 
-  if (diffDays <= 0) return "this_week";  // this week or overdue
+  if (diffDays <= 0) return "this_week";
   if (diffDays <= 7) return "next_week";
-  return "later";
+  if (diffDays <= 28) return "later";
+  return "in_a_month";
 }
