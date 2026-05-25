@@ -17,7 +17,6 @@ export type PushState = "unsupported" | "denied" | "granted" | "idle";
 export function usePushNotifications(userId: string | undefined) {
   const [state, setState] = React.useState<PushState>("idle");
 
-  // On mount, check current permission
   React.useEffect(() => {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       setState("unsupported");
@@ -28,7 +27,7 @@ export function usePushNotifications(userId: string | undefined) {
     }
   }, []);
 
-  async function subscribe() {
+  const subscribe = React.useCallback(async () => {
     if (!VAPID_PUBLIC_KEY) {
       console.warn("VITE_VAPID_PUBLIC_KEY not set — push notifications disabled");
       return;
@@ -43,9 +42,13 @@ export function usePushNotifications(userId: string | undefined) {
       }
 
       const reg = await navigator.serviceWorker.ready;
+      const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: keyBytes.buffer.slice(
+          keyBytes.byteOffset,
+          keyBytes.byteOffset + keyBytes.byteLength
+        ) as ArrayBuffer,
       });
 
       const json = sub.toJSON();
@@ -65,7 +68,7 @@ export function usePushNotifications(userId: string | undefined) {
     } catch (err) {
       console.error("Push subscription failed", err);
     }
-  }
+  }, [userId]);
 
   return { state, subscribe };
 }

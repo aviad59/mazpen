@@ -26,7 +26,6 @@ self.addEventListener("push", (event) => {
     dir: "rtl",
     lang: "he",
     data: { url: payload.url ?? "/" },
-    vibrate: [200, 100, 200],
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
