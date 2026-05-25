@@ -50,5 +50,3 @@ export function ArchiveView({ onOpenDiscussion }: Props) {
     </div>
   );
 }
-
-}

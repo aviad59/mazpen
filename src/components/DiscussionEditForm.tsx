@@ -134,6 +134,3 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
     </div>
   );
 }
-    </div>
-  );
-}
