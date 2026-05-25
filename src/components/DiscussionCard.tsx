@@ -51,11 +51,21 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         }
       }}
     >
-      {/* Substrate dot -- top-left corner */}
+      {/* Yellow dot for "new" status */}
+      {d.status === "new" && (
+        <span
+          className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-yellow-400"
+          title={"חדש — טרם תואם"}
+        />
+      )}
+      {/* Orange dot for substrate — offset right if yellow dot also showing */}
       {d.requiresSubstrate && (
         <span
-          className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-orange-400"
-          title="דורש מצע"
+          className={cn(
+            "absolute top-2 w-2.5 h-2.5 rounded-full bg-orange-400",
+            d.status === "new" ? "left-6" : "left-2"
+          )}
+          title={"דורש מצע"}
         />
       )}
 
