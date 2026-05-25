@@ -59,4 +59,71 @@ create index if not exists discussions_date_window_idx on public.discussions (da
 -- Row Level Security
 -- ------------------------------------------------------------
 alter table public.participants        enable row level security;
-alter table public.participant_groups  enable row l
+alter table public.participant_groups  enable row level security;
+alter table public.discussions         enable row level security;
+
+-- Drop old anon policies
+drop policy if exists "anon read participants"   on public.participants;
+drop policy if exists "anon write participants"  on public.participants;
+drop policy if exists "anon read discussions"    on public.discussions;
+drop policy if exists "anon write discussions"   on public.discussions;
+
+-- Authenticated user policies for participants
+create policy "auth read participants"
+  on public.participants for select
+  to authenticated
+  using (true);
+
+create policy "auth write participants"
+  on public.participants for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- Authenticated user policies for participant_groups
+create policy "auth read participant_groups"
+  on public.participant_groups for select
+  to authenticated
+  using (true);
+
+create policy "auth write participant_groups"
+  on public.participant_groups for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- Authenticated user policies for discussions
+create policy "auth read discussions"
+  on public.discussions for select
+  to authenticated
+  using (true);
+
+create policy "auth write discussions"
+  on public.discussions for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- ------------------------------------------------------------
+-- Push subscriptions (for PWA notifications)
+-- ------------------------------------------------------------
+create table if not exists public.push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  endpoint    text not null unique,
+  p256dh      text not null,
+  auth        text not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.push_subscriptions enable row level security;
+
+-- Users can only manage their own subscriptions
+create policy "own push subscriptions"
+  on public.push_subscriptions for all
+  to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- Edge function (service_role) can read all subscriptions to send notifications
+-- (service_role bypasses RLS by default — no extra policy needed)

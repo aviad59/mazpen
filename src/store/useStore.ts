@@ -26,8 +26,15 @@ import {
   putParticipant as dbPutParticipant,
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
+import { supabase } from "@/lib/supabaseClient";
 import { WINDOW_LABEL } from "@/lib/he";
 import { uid, scheduledWeekForWindow } from "@/lib/utils";
+
+/** Set by App.tsx whenever the auth user changes. Used to stamp HistoryEvents. */
+let currentUserName = "";
+export function setCurrentUserName(name: string) {
+  currentUserName = name;
+}
 
 interface State {
   loaded: boolean;
@@ -106,7 +113,7 @@ function getSnapshot() {
 // ----- actions ---------------------------------------------------------
 
 function buildEvent(kind: HistoryKind, text: string, meta?: Record<string, unknown>): HistoryEvent {
-  return { id: uid("h-"), kind, at: new Date().toISOString(), text, meta };
+  return { id: uid("h-"), kind, at: new Date().toISOString(), by: currentUserName || undefined, text, meta };
 }
 
 async function upsert(discussion: Discussion, event?: HistoryEvent) {
@@ -157,12 +164,21 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     recurrence: input.recurrence ?? "none",
     durationMinutes: input.durationMinutes,
     notes: input.notes,
-    history: [{ id: uid("h-"), kind: "created", at: nowIso, text: "הדיון נוצר", by: "מזכירות" }],
+    history: [{ id: uid("h-"), kind: "created", at: nowIso, text: "הדיון נוצר", by: currentUserName || undefined }],
     createdAt: nowIso,
     updatedAt: nowIso,
   };
   await dbPut(d);
   setState((p) => ({ ...p, discussions: [...p.discussions, d] }));
+
+  // Notify other users via Edge Function (fire-and-forget)
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) return;
+    supabase.functions.invoke("notify-discussion", {
+      body: { discussionName: d.name, creatorUserId: user.id },
+    }).catch(() => { /* non-critical */ });
+  });
+
   return d;
 }
 

@@ -81,3 +81,25 @@ export function DateWindowPicker({ value, onChange }: Props) {
     </div>
   );
 }
+key}
+            type="button"
+            onClick={() => onChange(w.key)}
+            className={cn(
+              "flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2.5 text-right transition-colors no-tap-highlight",
+              active
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border bg-card hover:bg-muted",
+              w.key === "unspecified" && "col-span-2"
+            )}
+          >
+            <span className="flex items-center gap-1.5 text-sm font-semibold">
+              {w.icon}
+              {WINDOW_LABEL[w.key]}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{hints[w.key]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

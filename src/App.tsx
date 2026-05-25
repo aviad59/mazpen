@@ -9,13 +9,31 @@ import { DiscussionDetail } from "./components/DiscussionDetail";
 import { ParticipantsSheet } from "./components/ParticipantsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
-import { useStore } from "./store/useStore";
+import { useStore, setCurrentUserName } from "./store/useStore";
 import { useAuth } from "./lib/useAuth";
+import { usePushNotifications } from "./lib/usePushNotifications";
 import type { Discussion } from "./types";
 
 export default function App() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const { discussions, error, clearAll, reload } = useStore();
+
+  // Keep store stamping in sync with auth user
+  React.useEffect(() => {
+    const name = user?.user_metadata?.full_name ?? user?.email ?? "";
+    setCurrentUserName(name);
+  }, [user]);
+
+  const { state: pushState, subscribe: subscribePush } = usePushNotifications(user?.id);
+
+  // Prompt for push permission once after login (only if not yet decided)
+  React.useEffect(() => {
+    if (user && pushState === "idle") {
+      // Small delay so the app settles before asking
+      const t = setTimeout(() => subscribePush(), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [user, pushState, subscribePush]);
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
