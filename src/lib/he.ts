@@ -15,12 +15,12 @@ export const APP_TAGLINE = "מעקב דיונים מבצעי";
 export const HOME_UNIT = "מצפן";
 
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {
-  scheduled: "מתוכנן",
+  new: "חדש",
+  coordinated: "תואם",
   occurred: "התקיים",
-  waiting_summary: "ממתין לסיכום",
-  waiting_approval: "ממתין לאישור",
-  waiting_distribution: "ממתין להפצה",
-  completed: "הושלם",
+  waiting_summary: "מחכה לסיכום",
+  waiting_approval: "האם אושר סיכום",
+  distributed: "הופץ",
   cancelled: "בוטל",
 };
 
@@ -48,10 +48,9 @@ export const SECTION_LABEL: Record<DashboardSection, string> = {
   unspecified: "לא קבוע",
   later: "שבועיים עד חודש",
   in_a_month: "בעוד חודש",
-  waiting_summary: "ממתינים לסיכום",
-  waiting_approval: "ממתינים לאישור",
-  waiting_distribution: "ממתינים להפצה",
-  completed: "הושלמו לאחרונה",
+  waiting_summary: "מחכה לסיכום",
+  waiting_approval: "האם אושר סיכום",
+  distributed: "הופץ",
 };
 
 export const SECTION_HINT: Record<DashboardSection, string> = {
@@ -62,8 +61,7 @@ export const SECTION_HINT: Record<DashboardSection, string> = {
   in_a_month: "מעבר לחודש מהיום",
   waiting_summary: "כתיבת סיכום על-ידי מוביל הדיון",
   waiting_approval: "סיכומים שממתינים לאישור מפקד",
-  waiting_distribution: "סיכומים מאושרים — להפיץ לנמענים",
-  completed: "טופלו במלואם",
+  distributed: "סיכומים שהופצו — טופלו במלואם",
 };
 
 export const T = {
@@ -86,6 +84,7 @@ export const T = {
   edit: "עריכה",
   back: "חזרה",
   window: "מסגרת זמן",
+  markCoordinated: "סמן כתואם",
   markOccurred: "סמן כהתקיים",
   startSummary: "התחל סיכום",
   approveSummary: "אשר סיכום",
@@ -104,8 +103,7 @@ export const T = {
     in_a_month: "אין דיונים בעוד חודש",
     waiting_summary: "אין סיכומים פתוחים",
     waiting_approval: "אין סיכומים לאישור",
-    waiting_distribution: "אין סיכומים להפצה",
-    completed: "טרם הושלמו דיונים השבוע",
+    distributed: "אין דיונים שהופצו",
   },
   tabs: {
     dashboard: "לוח מבצעי",

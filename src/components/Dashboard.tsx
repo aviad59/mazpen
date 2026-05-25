@@ -5,7 +5,6 @@ import {
   Clock,
   FileText,
   HelpCircle,
-  Send,
   Stamp,
 } from "lucide-react";
 import { DiscussionCard } from "./DiscussionCard";
@@ -28,8 +27,7 @@ const SECTION_ICON: Record<DashboardSection, React.ReactNode> = {
   in_a_month: <Clock size={28} />,
   waiting_summary: <FileText size={28} />,
   waiting_approval: <Stamp size={28} />,
-  waiting_distribution: <Send size={28} />,
-  completed: <CheckCircle2 size={28} />,
+  distributed: <CheckCircle2 size={28} />,
 };
 
 function bucketize(discussions: Discussion[]) {
@@ -41,22 +39,19 @@ function bucketize(discussions: Discussion[]) {
     in_a_month: [],
     waiting_summary: [],
     waiting_approval: [],
-    waiting_distribution: [],
-    completed: [],
+    distributed: [],
   };
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
-    if (d.status === "scheduled") {
+    if (d.status === "new" || d.status === "coordinated") {
       const section = effectiveScheduledSection(d.dateWindow, d.scheduledWeek);
       buckets[section].push(d);
     } else if (d.status === "occurred" || d.status === "waiting_summary") {
       buckets.waiting_summary.push(d);
     } else if (d.status === "waiting_approval") {
       buckets.waiting_approval.push(d);
-    } else if (d.status === "waiting_distribution") {
-      buckets.waiting_distribution.push(d);
-    } else if (d.status === "completed") {
-      buckets.completed.push(d);
+    } else if (d.status === "distributed") {
+      buckets.distributed.push(d);
     }
   }
 
@@ -67,8 +62,7 @@ function bucketize(discussions: Discussion[]) {
   buckets.in_a_month.sort(byCreatedDesc);
   buckets.waiting_summary.sort(byCreatedDesc);
   buckets.waiting_approval.sort(byCreatedDesc);
-  buckets.waiting_distribution.sort(byCreatedDesc);
-  buckets.completed.sort(
+  buckets.distributed.sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
   return buckets;
@@ -80,14 +74,13 @@ const SECTIONS: { key: DashboardSection; alert?: boolean; limit?: number }[] = [
   { key: "unspecified" },
   { key: "waiting_summary" },
   { key: "waiting_approval" },
-  { key: "waiting_distribution" },
   { key: "later" },
   { key: "in_a_month" },
-  { key: "completed", limit: 5 },
+  { key: "distributed", limit: 5 },
 ];
 
 export function Dashboard({ onOpenDiscussion }: Props) {
-  const { discussions, lookupParticipant, loaded } = useStore();
+  const { discussions, lookupParticipant, loaded, isNewDiscussion } = useStore();
   const buckets = React.useMemo(() => bucketize(discussions), [discussions]);
 
   if (!loaded) {
@@ -138,7 +131,8 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                     discussion={d}
                     lookupParticipant={lookupParticipant}
                     onOpen={onOpenDiscussion}
-                    compact={key === "completed" || key === "later" || key === "in_a_month"}
+                    compact={key === "distributed" || key === "later" || key === "in_a_month"}
+                    isNew={isNewDiscussion(d.id)}
                   />
                 ))}
               </div>

@@ -3,12 +3,12 @@ import type { DiscussionStatus } from "@/types";
 import { STATUS_LABEL } from "@/lib/he";
 
 const STATUS_TONE: Record<DiscussionStatus, Parameters<typeof Badge>[0]["tone"]> = {
-  scheduled: "info",
+  new: "info",
+  coordinated: "accent",
   occurred: "muted",
   waiting_summary: "warning",
   waiting_approval: "warning",
-  waiting_distribution: "warning",
-  completed: "success",
+  distributed: "success",
   cancelled: "muted",
 };
 

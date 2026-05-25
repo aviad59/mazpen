@@ -37,22 +37,22 @@ interface Props {
 }
 
 const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
-  scheduled: [{ label: T.markOccurred, to: "occurred" }],
+  new: [{ label: T.markCoordinated, to: "coordinated" }],
+  coordinated: [{ label: T.markOccurred, to: "occurred" }],
   occurred: [{ label: T.startSummary, to: "waiting_summary" }],
   waiting_summary: [{ label: "סיכום הושלם — לאישור", to: "waiting_approval" }],
-  waiting_approval: [{ label: T.approveSummary, to: "waiting_distribution" }],
-  waiting_distribution: [{ label: T.markDistributed, to: "completed" }],
-  completed: [],
+  waiting_approval: [{ label: T.approveSummary, to: "distributed" }],
+  distributed: [],
   cancelled: [],
 };
 
 const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
-  scheduled: null,
-  occurred: "scheduled",
+  new: null,
+  coordinated: "new",
+  occurred: "coordinated",
   waiting_summary: "occurred",
   waiting_approval: "waiting_summary",
-  waiting_distribution: "waiting_approval",
-  completed: "waiting_distribution",
+  distributed: "waiting_approval",
   cancelled: null,
 };
 
@@ -126,6 +126,11 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     if (!note.trim()) return;
     await addNote(d.id, note);
     setNote("");
+    // Keep edit state in sync so switching to edit mode shows the updated notes
+    setEdit((s) => ({
+      ...s,
+      notes: s.notes ? `${s.notes}\n${note.trim()}` : note.trim(),
+    }));
   }
 
   async function handleDelete() {
@@ -203,8 +208,8 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
             <Label>פעולות מהירות</Label>
             <div className="flex flex-wrap gap-2">
               {nextActions.map((a) => (
-                <Button key={a.to} size="sm" variant={a.to === "completed" ? "primary" : "outline"} onClick={() => changeStatus(d.id, a.to)}>
-                  <CheckCircle2 size={14} />{a.label}<ChevronLeft size={14} />
+                <Button key={a.to} size="sm" variant={a.to === "distributed" ? "primary" : "outline"} onClick={() => changeStatus(d.id, a.to)}>
+                  <CheckCircle2 size={14} />{a.label}{a.to !== "distributed" && <ChevronLeft size={14} />}
                 </Button>
               ))}
               {prevStatus && (
@@ -258,7 +263,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
         {!editing && (
           <Card className="p-4">
-            <Label>הוסף הערה / עדכון</Label>
+            <Label>הוסף לשדה ההערות</Label>
             <div className="flex gap-2">
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder={T.addNote}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddNote(); } }} />

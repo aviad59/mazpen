@@ -36,6 +36,36 @@ export function setCurrentUserName(name: string) {
   currentUserName = name;
 }
 
+// ----- session "new discussion" tracking -----------------------------------
+// On first load we compare the fetched IDs against what was stored in
+// localStorage from the previous session. Any ID that was not known then is
+// considered "new" and highlighted for the user until they close/refresh.
+
+const STORAGE_KEY = "mazpen_known_discussion_ids";
+let newDiscussionIds = new Set<string>();
+let sessionInitialized = false;
+
+function initSessionTracking(ids: string[]) {
+  if (sessionInitialized) return;
+  sessionInitialized = true;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const known = new Set<string>(JSON.parse(raw) as string[]);
+      for (const id of ids) {
+        if (!known.has(id)) newDiscussionIds.add(id);
+      }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // localStorage unavailable -- skip silently
+  }
+}
+
+export function isNewDiscussion(id: string): boolean {
+  return newDiscussionIds.has(id);
+}
+
 interface State {
   loaded: boolean;
   error: string | null;
@@ -80,6 +110,7 @@ async function load() {
       listParticipants(),
     ]);
     const groups = await listGroups().catch(() => []);
+    initSessionTracking(discussions.map((d) => d.id));
     setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
@@ -154,7 +185,7 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
   const d: Discussion = {
     id: uid("disc-"),
     name: input.name.trim(),
-    status: "scheduled",
+    status: "new",
     dateWindow: resolvedWindow,
     scheduledWeek: scheduledWeekForWindow(resolvedWindow),
     participantIds: input.participantIds,
@@ -203,7 +234,7 @@ async function changeStatus(id: string, to: DiscussionStatus, by?: string) {
   if (!current) return;
   await upsert(
     { ...current, status: to },
-    buildEvent("status_changed", `סטטוס שונה ל"${statusLabelFor(to)}"`, { from: current.status, to, by })
+    buildEvent("status_changed", `סטטוס: ${statusLabelFor(current.status)} ← ${statusLabelFor(to)}`, { from: current.status, to, by })
   );
 }
 
@@ -213,7 +244,7 @@ async function setDateWindow(id: string, w: DateWindow) {
   if (current.dateWindow === w) return;
   await upsert(
     { ...current, dateWindow: w, scheduledWeek: scheduledWeekForWindow(w) },
-    buildEvent("window_changed", `מסגרת הזמן עודכנה ל"${WINDOW_LABEL[w]}"`, { from: current.dateWindow, to: w })
+    buildEvent("window_changed", `מסגרת זמן: ${WINDOW_LABEL[current.dateWindow]} ← ${WINDOW_LABEL[w]}`, { from: current.dateWindow, to: w })
   );
 }
 
@@ -259,7 +290,10 @@ async function removeGroup(id: string): Promise<void> {
 async function addNote(id: string, text: string) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current || !text.trim()) return;
-  await upsert(current, buildEvent("note", text.trim()));
+  const trimmed = text.trim();
+  const newNotes = current.notes ? `${current.notes}
+${trimmed}` : trimmed;
+  await upsert({ ...current, notes: newNotes });
 }
 
 async function clearAll() {
@@ -268,11 +302,16 @@ async function clearAll() {
 }
 
 function statusLabelFor(s: DiscussionStatus): string {
-  return ({
-    scheduled: "מתוכנן", occurred: "התקיים", waiting_summary: "ממתין לסיכום",
-    waiting_approval: "ממתין לאישור", waiting_distribution: "ממתין להפצה",
-    completed: "הושלם", cancelled: "בוטל",
-  } as Record<DiscussionStatus, string>)[s];
+  const labels: Record<DiscussionStatus, string> = {
+    new: "חדש",
+    coordinated: "תואם",
+    occurred: "התקיים",
+    waiting_summary: "מחכה לסיכום",
+    waiting_approval: "האם אושר סיכום",
+    distributed: "הופץ",
+    cancelled: "בוטל",
+  };
+  return labels[s] ?? s;
 }
 
 // ----- public hook -----------------------------------------------------
@@ -298,6 +337,7 @@ export function useStore() {
     participants: snap.participants,
     groups: snap.groups,
     lookupParticipant,
+    isNewDiscussion,
     createDiscussion,
     updateDiscussion,
     changeStatus,

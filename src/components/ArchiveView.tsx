@@ -16,7 +16,7 @@ export function ArchiveView({ onOpenDiscussion }: Props) {
   const completed = React.useMemo(
     () =>
       discussions
-        .filter((d) => d.status === "completed" || d.status === "cancelled")
+        .filter((d) => d.status === "distributed" || d.status === "cancelled")
         .sort(byCreatedDesc),
     [discussions]
   );
@@ -49,4 +49,6 @@ export function ArchiveView({ onOpenDiscussion }: Props) {
       )}
     </div>
   );
+}
+
 }

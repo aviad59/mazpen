@@ -60,7 +60,7 @@ export default function App() {
   const openDiscussion = discussions.find((d) => d.id === openId) ?? null;
 
   const pendingScheduling = discussions.filter(
-    (d) => d.status === "scheduled" && d.dateWindow === "unspecified"
+    (d) => (d.status === "new" || d.status === "coordinated") && d.dateWindow === "unspecified"
   ).length;
 
   function handleClearAll() {
@@ -131,6 +131,10 @@ export default function App() {
       <ParticipantsSheet
         open={participantsOpen}
         onClose={() => setParticipantsOpen(false)}
+      />
+    </div>
+  );
+}
       />
     </div>
   );

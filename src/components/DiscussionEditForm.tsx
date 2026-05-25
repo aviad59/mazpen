@@ -124,14 +124,16 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
         <Select
           value={discussion.status}
           onChange={(e) => changeStatus(discussion.id, e.target.value as DiscussionStatus)}
-          options={(Object.keys(STATUS_LABEL) as DiscussionStatus[])
-            .filter((s) => s !== "cancelled")
+          options={(["new", "coordinated", "occurred", "waiting_summary", "waiting_approval", "distributed"] as DiscussionStatus[])
             .map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
         />
         <p className="text-[11px] text-muted-foreground mt-1">
           ניתן לבחור כל סטטוס, כולל חזרה אחורה. השינוי מתעדכן מיד.
         </p>
       </div>
+    </div>
+  );
+}
     </div>
   );
 }

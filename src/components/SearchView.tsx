@@ -21,18 +21,20 @@ const QUICK_OPTIONS: { key: Quick; label: string }[] = [
   { key: "later", label: WINDOW_LABEL.later },
   { key: "in_a_month", label: WINDOW_LABEL.in_a_month },
   { key: "unspecified", label: WINDOW_LABEL.unspecified },
+  { key: "new", label: STATUS_LABEL.new },
+  { key: "coordinated", label: STATUS_LABEL.coordinated },
   { key: "waiting_summary", label: STATUS_LABEL.waiting_summary },
   { key: "waiting_approval", label: STATUS_LABEL.waiting_approval },
-  { key: "waiting_distribution", label: STATUS_LABEL.waiting_distribution },
-  { key: "completed", label: STATUS_LABEL.completed },
+  { key: "distributed", label: STATUS_LABEL.distributed },
 ];
 
 const WINDOW_KEYS = new Set<Quick>(["this_week", "next_week", "later", "in_a_month", "unspecified"]);
 const STATUS_KEYS = new Set<Quick>([
+  "new",
+  "coordinated",
   "waiting_summary",
   "waiting_approval",
-  "waiting_distribution",
-  "completed",
+  "distributed",
 ]);
 
 interface Props {
@@ -40,7 +42,7 @@ interface Props {
 }
 
 export function SearchView({ onOpenDiscussion }: Props) {
-  const { discussions, lookupParticipant, participants } = useStore();
+  const { discussions, lookupParticipant, participants, isNewDiscussion } = useStore();
   const [query, setQuery] = React.useState("");
   const [quick, setQuick] = React.useState<Quick>("all");
   const [participantId, setParticipantId] = React.useState<string>("");
@@ -51,7 +53,7 @@ export function SearchView({ onOpenDiscussion }: Props) {
       if (d.status === "cancelled") return false;
 
       if (WINDOW_KEYS.has(quick)) {
-        if (d.status !== "scheduled" || d.dateWindow !== (quick as DateWindow))
+        if ((d.status !== "new" && d.status !== "coordinated") || d.dateWindow !== (quick as DateWindow))
           return false;
       } else if (STATUS_KEYS.has(quick)) {
         if (d.status !== (quick as DiscussionStatus)) return false;
@@ -185,6 +187,7 @@ export function SearchView({ onOpenDiscussion }: Props) {
                 lookupParticipant={lookupParticipant}
                 onOpen={onOpenDiscussion}
                 compact
+                isNew={isNewDiscussion(d.id)}
               />
             ))}
           </>

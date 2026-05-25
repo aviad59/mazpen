@@ -26,12 +26,12 @@ export type Recurrence =
   | "monthly";
 
 export type DiscussionStatus =
-  | "scheduled"
+  | "new"
+  | "coordinated"
   | "occurred"
   | "waiting_summary"
   | "waiting_approval"
-  | "waiting_distribution"
-  | "completed"
+  | "distributed"
   | "cancelled";
 
 /** Dashboard section keys — a mix of window buckets and post-meeting buckets. */
@@ -43,8 +43,7 @@ export type DashboardSection =
   | "in_a_month"
   | "waiting_summary"
   | "waiting_approval"
-  | "waiting_distribution"
-  | "completed";
+  | "distributed";
 
 export interface Participant {
   id: string;

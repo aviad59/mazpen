@@ -12,6 +12,7 @@ interface Props {
   lookupParticipant: (id: string) => Participant | undefined;
   onOpen: (id: string) => void;
   compact?: boolean;
+  isNew?: boolean;
 }
 
 function externalUnits(participants: Participant[]): string[] {
@@ -22,7 +23,7 @@ function externalUnits(participants: Participant[]): string[] {
   return Array.from(seen);
 }
 
-export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact }: Props) {
+export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact, isNew }: Props) {
   const thisWeek = d.dateWindow === "this_week";
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
@@ -36,8 +37,9 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
     <Card
       onClick={() => onOpen(d.id)}
       className={cn(
-        "cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99] active:shadow-sm",
+        "relative cursor-pointer transition-shadow hover:shadow-md active:scale-[0.99] active:shadow-sm",
         thisWeek && "ring-1 ring-accent/30",
+        isNew && "ring-1 ring-red-400/60 bg-red-50/40 dark:bg-red-950/20",
         compact ? "p-3" : "p-4"
       )}
       role="button"
@@ -49,6 +51,14 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         }
       }}
     >
+      {/* Substrate dot -- top-left corner */}
+      {d.requiresSubstrate && (
+        <span
+          className="absolute top-2 left-2 w-2.5 h-2.5 rounded-full bg-orange-400"
+          title="דורש מצע"
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <h3
@@ -103,7 +113,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
           )}
           {leader && (
             <Badge tone="muted" className="ms-auto">
-              מוביל: {leader.name}
+              {"מוביל: "}{leader.name}
             </Badge>
           )}
         </div>
@@ -115,7 +125,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         {d.requiresSubstrate && (
           <Badge tone="muted">
             <FileStack size={10} />
-            מצע
+            {"מצע"}
           </Badge>
         )}
         {d.recurrence !== "none" && (
