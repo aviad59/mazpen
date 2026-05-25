@@ -314,33 +314,3 @@ export function useStore() {
     reload: load,
   };
 }
-  }, [snap.participants]);
-
-  const lookupParticipant = useCallback(
-    (id: string) => participantsById.get(id),
-    [participantsById]
-  );
-
-  return {
-    loaded: snap.loaded,
-    error: snap.error,
-    discussions: snap.discussions,
-    participants: snap.participants,
-    groups: snap.groups,
-    lookupParticipant,
-    createDiscussion,
-    updateDiscussion,
-    changeStatus,
-    setDateWindow,
-    removeDiscussion,
-    addParticipant,
-    updateParticipant,
-    removeParticipant,
-    addGroup,
-    updateGroup,
-    removeGroup,
-    addNote,
-    clearAll,
-    reload: load,
-  };
-}
