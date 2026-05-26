@@ -20,32 +20,36 @@ interface Props {
   onOpenDiscussion: (id: string) => void;
 }
 
-// ---- Phase header divider ------------------------------------------------
+// ---- Phase box wrapper ---------------------------------------------------
 
-interface PhaseHeaderProps {
+interface PhaseBoxProps {
   label: string;
   count: number;
-  colorClass: string;   // text + border colour classes
-  bgClass: string;      // pill background
+  headerClass: string;  // bg color for the top strip
+  borderClass: string;  // border color
+  children: React.ReactNode;
 }
 
-function PhaseHeader({ label, count, colorClass, bgClass }: PhaseHeaderProps) {
+function PhaseBox({ label, count, headerClass, borderClass, children }: PhaseBoxProps) {
   if (count === 0) return null;
   return (
-    <div className="flex items-center gap-3 pt-5 pb-1 px-1">
-      <div className={cn("h-px flex-1 opacity-40", bgClass.replace("bg-", "bg-"))} />
-      <span className={cn("text-[11px] font-bold tracking-widest px-3 py-1 rounded-full", colorClass, bgClass)}>
-        {label}
-        <span className="ms-1.5 opacity-60">{count}</span>
-      </span>
-      <div className={cn("h-px flex-1 opacity-40", bgClass.replace("bg-", "bg-"))} />
+    <div className={cn("rounded-xl border-2 overflow-hidden", borderClass)}>
+      {/* Colored top strip */}
+      <div className={cn("flex items-center justify-between px-4 py-2", headerClass)}>
+        <span className="text-sm font-bold tracking-wide">{label}</span>
+        <span className="text-xs font-semibold opacity-70 bg-white/20 rounded-full px-2 py-0.5">{count}</span>
+      </div>
+      {/* Content */}
+      <div className="p-3 space-y-1 bg-background">
+        {children}
+      </div>
     </div>
   );
 }
 
-// ---- Date-window sub-sections inside the planning phase ------------------
+// ---- Icons ---------------------------------------------------------------
 
-const PLANNING_ICON: Record<DashboardSection, React.ReactNode> = {
+const WINDOW_ICON: Record<DashboardSection, React.ReactNode> = {
   this_week: <CalendarRange size={28} />,
   next_week: <CalendarRange size={28} />,
   unspecified: <HelpCircle size={28} />,
@@ -67,13 +71,9 @@ const PLANNING_WINDOWS: DashboardSection[] = [
 // ---- Bucketing -----------------------------------------------------------
 
 interface Buckets {
-  // planning phase: keyed by date-window section
   planning: Record<DashboardSection, Discussion[]>;
-  // summary phase: occurred (requiresSummary) + waiting_summary
   summary: Discussion[];
-  // approval phase
   approval: Discussion[];
-  // done phase: distributed + occurred without requiresSummary
   done: Discussion[];
 }
 
@@ -94,16 +94,11 @@ function bucketize(discussions: Discussion[]): Buckets {
 
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
-
     if (d.status === "new" || d.status === "coordinated") {
       const section = effectiveScheduledSection(d.dateWindow, d.scheduledWeek);
       planning[section].push(d);
     } else if (d.status === "occurred") {
-      if (d.requiresSummary) {
-        summary.push(d);
-      } else {
-        done.push(d);
-      }
+      if (d.requiresSummary) { summary.push(d); } else { done.push(d); }
     } else if (d.status === "waiting_summary") {
       summary.push(d);
     } else if (d.status === "waiting_approval") {
@@ -136,7 +131,11 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   }
 
   const planningCount = PLANNING_WINDOWS.reduce((n, w) => n + buckets.planning[w].length, 0);
-  const isAllEmpty = planningCount === 0 && buckets.summary.length === 0 && buckets.approval.length === 0 && buckets.done.length === 0;
+  const isAllEmpty =
+    planningCount === 0 &&
+    buckets.summary.length === 0 &&
+    buckets.approval.length === 0 &&
+    buckets.done.length === 0;
 
   if (isAllEmpty) {
     return (
@@ -151,55 +150,52 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   }
 
   return (
-    <div className="space-y-1 px-3 pb-24">
+    <div className="space-y-4 px-3 pb-24 pt-3">
 
       {/* ── Phase 1: Planning ── */}
-      <PhaseHeader
+      <PhaseBox
         label="בתכנון"
         count={planningCount}
-        colorClass="text-blue-700 dark:text-blue-300"
-        bgClass="bg-blue-100 dark:bg-blue-900"
-      />
-      {planningCount === 0 && (
-        <EmptyState icon={<CalendarRange size={36} />} title="אין דיונים בתכנון" className="py-4" />
-      )}
-      {PLANNING_WINDOWS.map((w) => {
-        const items = buckets.planning[w];
-        return (
-          <section key={w}>
-            <SectionHeader
-              title={SECTION_LABEL[w]}
-              hint={items.length > 0 ? SECTION_HINT[w] : undefined}
-              count={items.length}
-              variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
-            />
-            {items.length === 0 ? (
-              <EmptyState icon={PLANNING_ICON[w]} title={T.empty[w]} className="py-3" />
-            ) : (
-              <div className="space-y-2">
-                {items.map((d) => (
-                  <DiscussionCard
-                    key={d.id}
-                    discussion={d}
-                    lookupParticipant={lookupParticipant}
-                    onOpen={onOpenDiscussion}
-                    isNew={isNewDiscussion(d.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        );
-      })}
+        headerClass="bg-blue-500 text-white"
+        borderClass="border-blue-200 dark:border-blue-800"
+      >
+        {PLANNING_WINDOWS.map((w) => {
+          const items = buckets.planning[w];
+          return (
+            <section key={w}>
+              <SectionHeader
+                title={SECTION_LABEL[w]}
+                hint={items.length > 0 ? SECTION_HINT[w] : undefined}
+                count={items.length}
+                variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
+              />
+              {items.length === 0 ? (
+                <EmptyState icon={WINDOW_ICON[w]} title={T.empty[w]} className="py-3" />
+              ) : (
+                <div className="space-y-2">
+                  {items.map((d) => (
+                    <DiscussionCard
+                      key={d.id}
+                      discussion={d}
+                      lookupParticipant={lookupParticipant}
+                      onOpen={onOpenDiscussion}
+                      isNew={isNewDiscussion(d.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </PhaseBox>
 
       {/* ── Phase 2: Summary ── */}
-      <PhaseHeader
+      <PhaseBox
         label="מחכה לסיכום"
         count={buckets.summary.length}
-        colorClass="text-amber-700 dark:text-amber-300"
-        bgClass="bg-amber-100 dark:bg-amber-900"
-      />
-      {buckets.summary.length > 0 && (
+        headerClass="bg-amber-500 text-white"
+        borderClass="border-amber-200 dark:border-amber-800"
+      >
         <div className="space-y-2 pt-1">
           {buckets.summary.map((d) => (
             <DiscussionCard
@@ -211,16 +207,15 @@ export function Dashboard({ onOpenDiscussion }: Props) {
             />
           ))}
         </div>
-      )}
+      </PhaseBox>
 
       {/* ── Phase 3: Approval ── */}
-      <PhaseHeader
+      <PhaseBox
         label="ממתין לאישור"
         count={buckets.approval.length}
-        colorClass="text-violet-700 dark:text-violet-300"
-        bgClass="bg-violet-100 dark:bg-violet-900"
-      />
-      {buckets.approval.length > 0 && (
+        headerClass="bg-violet-500 text-white"
+        borderClass="border-violet-200 dark:border-violet-800"
+      >
         <div className="space-y-2 pt-1">
           {buckets.approval.map((d) => (
             <DiscussionCard
@@ -232,16 +227,15 @@ export function Dashboard({ onOpenDiscussion }: Props) {
             />
           ))}
         </div>
-      )}
+      </PhaseBox>
 
       {/* ── Phase 4: Done ── */}
-      <PhaseHeader
+      <PhaseBox
         label="הסתיים"
         count={buckets.done.length}
-        colorClass="text-emerald-700 dark:text-emerald-300"
-        bgClass="bg-emerald-100 dark:bg-emerald-900"
-      />
-      {buckets.done.length > 0 && (
+        headerClass="bg-emerald-500 text-white"
+        borderClass="border-emerald-200 dark:border-emerald-800"
+      >
         <div className="space-y-2 pt-1">
           {buckets.done.slice(0, 5).map((d) => (
             <DiscussionCard
@@ -254,7 +248,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
             />
           ))}
         </div>
-      )}
+      </PhaseBox>
 
     </div>
   );
