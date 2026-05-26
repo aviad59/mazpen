@@ -10,10 +10,28 @@ import { ParticipantsSheet } from "./components/ParticipantsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { IOSInstallBanner } from "./components/IOSInstallBanner";
+import { EnableNotificationsBanner } from "./components/EnableNotificationsBanner";
 import { useStore, setCurrentUserName } from "./store/useStore";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
 import type { Discussion } from "./types";
+
+/** Read ?id= from the URL once on mount, then clean the param. */
+function getAndClearSharedId(): string | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    if (id) {
+      params.delete("id");
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? "?" + newSearch : "");
+      window.history.replaceState(null, "", newUrl);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const { user, signInWithGoogle, signOut } = useAuth();
@@ -21,7 +39,7 @@ export default function App() {
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
-  const [openId, setOpenId] = React.useState<string | null>(null);
+  const [openId, setOpenId] = React.useState<string | null>(() => getAndClearSharedId());
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
   // Keep store stamping in sync with auth user
@@ -32,7 +50,7 @@ export default function App() {
 
   const { state: pushState, subscribe: subscribePush } = usePushNotifications(user?.id);
 
-  // Prompt for push permission once after login (only if supported and not yet decided)
+  // On non-iOS: auto-prompt for push permission after login (only if not yet decided)
   React.useEffect(() => {
     if (user && pushState === "idle") {
       const t = setTimeout(() => subscribePush(), 3000);
@@ -44,7 +62,7 @@ export default function App() {
   if (user === undefined) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground text-sm">{"\u05d8\u05d5\u05e2\u05df..."}</div>
+        <div className="text-muted-foreground text-sm">{"טוען..."}</div>
       </div>
     );
   }
@@ -115,8 +133,13 @@ export default function App() {
         }}
       />
 
-      {/* iOS: show install banner so users know to add to home screen for notifications */}
+      {/* iOS Safari: show install instructions */}
       {pushState === "needs_install" && <IOSInstallBanner />}
+
+      {/* iOS standalone: needs a user tap before we can request permission */}
+      {pushState === "needs_tap" && user && (
+        <EnableNotificationsBanner onEnable={subscribePush} />
+      )}
 
       <QuickAddSheet
         open={addOpen}

@@ -12,9 +12,15 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-export type PushState = "unsupported" | "denied" | "granted" | "idle" | "needs_install";
+export type PushState =
+  | "unsupported"
+  | "denied"
+  | "granted"
+  | "idle"
+  | "needs_install"
+  | "needs_tap"; // iOS standalone: waiting for user gesture before requesting permission
 
-/** True when running on iOS Safari (not installed to home screen). */
+/** True when running on iOS Safari browser tab (not installed to home screen). */
 function detectIOSBrowser(): boolean {
   const isIOS =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -24,6 +30,18 @@ function detectIOSBrowser(): boolean {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (navigator as any).standalone === true;
   return isIOS && !isStandalone;
+}
+
+/** True when running as an installed PWA on iOS (home screen, standalone). */
+function detectIOSStandalone(): boolean {
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).standalone === true;
+  return isIOS && isStandalone;
 }
 
 export function usePushNotifications(userId: string | undefined) {
@@ -38,12 +56,17 @@ export function usePushNotifications(userId: string | undefined) {
     } else if (Notification.permission === "denied") {
       setState("denied");
     } else if (Notification.permission === "granted") {
+      // Already granted — re-register subscription in case it lapsed
       setState("granted");
+    } else if (detectIOSStandalone()) {
+      // iOS installed PWA, permission not yet granted: must wait for a user tap
+      setState("needs_tap");
     }
+    // Otherwise "idle" — non-iOS can be auto-prompted
   }, []);
 
   const subscribe = React.useCallback(async () => {
-    if (state === "needs_install") return; // can't subscribe in Safari tab on iOS
+    if (state === "needs_install") return;
     if (!VAPID_PUBLIC_KEY) {
       console.warn("VITE_VAPID_PUBLIC_KEY not set — push notifications disabled");
       return;

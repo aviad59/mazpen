@@ -9,6 +9,7 @@ import {
   FileStack,
   MessageSquare,
   Send,
+  Share2,
   Sparkles,
   Timer,
   Trash2,
@@ -83,6 +84,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   const [editing, setEditing] = React.useState(false);
   const [edit, setEdit] = React.useState<EditState>(EMPTY_EDIT);
   const [note, setNote] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
     if (!discussion) return;
@@ -147,9 +149,46 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     onClose();
   }
 
+  async function handleShare() {
+    const url = `${window.location.origin}${window.location.pathname}?id=${d.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: d.name, url });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Clipboard not available — use legacy execCommand
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   const footer = !editing ? (
     <div className="flex gap-2">
       <Button variant="outline" size="md" onClick={() => setEditing(true)} className="flex-1">{T.edit}</Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleShare}
+        title={copied ? "הועתק!" : "שתף קישור"}
+        className={cn(copied && "text-green-500")}
+      >
+        {copied ? <CheckCircle2 size={16} /> : <Share2 size={16} />}
+      </Button>
       {onDuplicate && (
         <Button variant="ghost" size="icon" onClick={() => onDuplicate(d)} title="שכפל דיון">
           <Copy size={16} />
