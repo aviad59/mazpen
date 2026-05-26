@@ -9,6 +9,7 @@ import { DiscussionDetail } from "./components/DiscussionDetail";
 import { ParticipantsSheet } from "./components/ParticipantsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
+import { IOSInstallBanner } from "./components/IOSInstallBanner";
 import { useStore, setCurrentUserName } from "./store/useStore";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
@@ -31,7 +32,7 @@ export default function App() {
 
   const { state: pushState, subscribe: subscribePush } = usePushNotifications(user?.id);
 
-  // Prompt for push permission once after login (only if not yet decided)
+  // Prompt for push permission once after login (only if supported and not yet decided)
   React.useEffect(() => {
     if (user && pushState === "idle") {
       const t = setTimeout(() => subscribePush(), 3000);
@@ -43,7 +44,7 @@ export default function App() {
   if (user === undefined) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground text-sm">\u05d8\u05d5\u05e2\u05df...</div>
+        <div className="text-muted-foreground text-sm">{"\u05d8\u05d5\u05e2\u05df..."}</div>
       </div>
     );
   }
@@ -64,14 +65,14 @@ export default function App() {
   ).length;
 
   function handleClearAll() {
-    if (confirm("\u05dc\u05de\u05d7\u05d5\u05e7 \u05d0\u05ea \u05db\u05dc \u05d4\u05d3\u05d9\u05d5\u05e0\u05d9\u05dd \u05d5\u05d4\u05de\u05e9\u05ea\u05ea\u05e4\u05d9\u05dd? \u05e4\u05e2\u05d5\u05dc\u05d4 \u05d6\u05d5 \u05dc\u05d0 \u05e0\u05d9\u05ea\u05e0\u05ea \u05dc\u05e9\u05d7\u05d6\u05d5\u05e8.")) {
+    if (confirm("למחוק את כל הדיונים והמשתתפים? פעולה זו לא ניתנת לשחזור.")) {
       clearAll();
     }
   }
 
   function handleDuplicate(d: Discussion) {
     setTemplate({
-      name: `${d.name} (\u05e2\u05d5\u05ea\u05e7)`,
+      name: d.name + " (עותק)",
       participantIds: d.participantIds,
       leaderId: d.leaderId,
       requiresSummary: d.requiresSummary,
@@ -113,6 +114,9 @@ export default function App() {
           setAddOpen(true);
         }}
       />
+
+      {/* iOS: show install banner so users know to add to home screen for notifications */}
+      {pushState === "needs_install" && <IOSInstallBanner />}
 
       <QuickAddSheet
         open={addOpen}

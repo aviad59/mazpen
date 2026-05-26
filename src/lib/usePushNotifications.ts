@@ -12,13 +12,28 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-export type PushState = "unsupported" | "denied" | "granted" | "idle";
+export type PushState = "unsupported" | "denied" | "granted" | "idle" | "needs_install";
+
+/** True when running on iOS Safari (not installed to home screen). */
+function detectIOSBrowser(): boolean {
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).standalone === true;
+  return isIOS && !isStandalone;
+}
 
 export function usePushNotifications(userId: string | undefined) {
   const [state, setState] = React.useState<PushState>("idle");
 
   React.useEffect(() => {
-    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
+    if (detectIOSBrowser()) {
+      // iOS Safari tab: push is unavailable until installed to home screen
+      setState("needs_install");
+    } else if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       setState("unsupported");
     } else if (Notification.permission === "denied") {
       setState("denied");
@@ -28,6 +43,7 @@ export function usePushNotifications(userId: string | undefined) {
   }, []);
 
   const subscribe = React.useCallback(async () => {
+    if (state === "needs_install") return; // can't subscribe in Safari tab on iOS
     if (!VAPID_PUBLIC_KEY) {
       console.warn("VITE_VAPID_PUBLIC_KEY not set — push notifications disabled");
       return;
@@ -68,7 +84,7 @@ export function usePushNotifications(userId: string | undefined) {
     } catch (err) {
       console.error("Push subscription failed", err);
     }
-  }, [userId]);
+  }, [userId, state]);
 
   return { state, subscribe };
 }

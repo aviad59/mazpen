@@ -1,12 +1,5 @@
 import * as React from "react";
-import {
-  CalendarRange,
-  CheckCircle2,
-  Clock,
-  FileText,
-  HelpCircle,
-  Stamp,
-} from "lucide-react";
+import { CalendarRange, HelpCircle, Clock } from "lucide-react";
 import { DiscussionCard } from "./DiscussionCard";
 import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
@@ -25,8 +18,8 @@ interface Props {
 interface PhaseBoxProps {
   label: string;
   count: number;
-  headerClass: string;  // bg color for the top strip
-  borderClass: string;  // border color
+  headerClass: string;
+  borderClass: string;
   children: React.ReactNode;
 }
 
@@ -34,12 +27,10 @@ function PhaseBox({ label, count, headerClass, borderClass, children }: PhaseBox
   if (count === 0) return null;
   return (
     <div className={cn("rounded-xl border-2 overflow-hidden", borderClass)}>
-      {/* Colored top strip */}
       <div className={cn("flex items-center justify-between px-4 py-2", headerClass)}>
         <span className="text-sm font-bold tracking-wide">{label}</span>
         <span className="text-xs font-semibold opacity-70 bg-white/20 rounded-full px-2 py-0.5">{count}</span>
       </div>
-      {/* Content */}
       <div className="p-3 space-y-1 bg-background">
         {children}
       </div>
@@ -49,15 +40,12 @@ function PhaseBox({ label, count, headerClass, borderClass, children }: PhaseBox
 
 // ---- Icons ---------------------------------------------------------------
 
-const WINDOW_ICON: Record<DashboardSection, React.ReactNode> = {
+const WINDOW_ICON: Record<string, React.ReactNode> = {
   this_week: <CalendarRange size={28} />,
   next_week: <CalendarRange size={28} />,
   unspecified: <HelpCircle size={28} />,
   later: <Clock size={28} />,
   in_a_month: <Clock size={28} />,
-  waiting_summary: <FileText size={28} />,
-  waiting_approval: <Stamp size={28} />,
-  distributed: <CheckCircle2 size={28} />,
 };
 
 const PLANNING_WINDOWS: DashboardSection[] = [
@@ -71,49 +59,41 @@ const PLANNING_WINDOWS: DashboardSection[] = [
 // ---- Bucketing -----------------------------------------------------------
 
 interface Buckets {
-  planning: Record<DashboardSection, Discussion[]>;
+  planning: Record<string, Discussion[]>;
+  coordinated: Discussion[];
   summary: Discussion[];
-  approval: Discussion[];
-  done: Discussion[];
 }
 
 function bucketize(discussions: Discussion[]): Buckets {
-  const planning: Record<DashboardSection, Discussion[]> = {
+  const planning: Record<string, Discussion[]> = {
     this_week: [],
     next_week: [],
     unspecified: [],
     later: [],
     in_a_month: [],
-    waiting_summary: [],
-    waiting_approval: [],
-    distributed: [],
   };
+  const coordinated: Discussion[] = [];
   const summary: Discussion[] = [];
-  const approval: Discussion[] = [];
-  const done: Discussion[] = [];
 
   for (const d of discussions) {
     if (d.status === "cancelled") continue;
-    if (d.status === "new" || d.status === "coordinated") {
+
+    if (d.status === "new") {
       const section = effectiveScheduledSection(d.dateWindow, d.scheduledWeek);
       planning[section].push(d);
-    } else if (d.status === "occurred") {
-      if (d.requiresSummary) { summary.push(d); } else { done.push(d); }
-    } else if (d.status === "waiting_summary") {
+    } else if (d.status === "coordinated") {
+      coordinated.push(d);
+    } else if (d.status === "waiting_summary" || d.status === "waiting_approval") {
       summary.push(d);
-    } else if (d.status === "waiting_approval") {
-      approval.push(d);
-    } else if (d.status === "distributed") {
-      done.push(d);
     }
+    // occurred and distributed go to archive — not shown here
   }
 
   PLANNING_WINDOWS.forEach((w) => planning[w].sort(byCreatedDesc));
+  coordinated.sort(byCreatedDesc);
   summary.sort(byCreatedDesc);
-  approval.sort(byCreatedDesc);
-  done.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-  return { planning, summary, approval, done };
+  return { planning, coordinated, summary };
 }
 
 // ---- Main component ------------------------------------------------------
@@ -131,11 +111,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   }
 
   const planningCount = PLANNING_WINDOWS.reduce((n, w) => n + buckets.planning[w].length, 0);
-  const isAllEmpty =
-    planningCount === 0 &&
-    buckets.summary.length === 0 &&
-    buckets.approval.length === 0 &&
-    buckets.done.length === 0;
+  const isAllEmpty = planningCount === 0 && buckets.coordinated.length === 0 && buckets.summary.length === 0;
 
   if (isAllEmpty) {
     return (
@@ -152,7 +128,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   return (
     <div className="space-y-4 px-3 pb-24 pt-3">
 
-      {/* ── Phase 1: Planning ── */}
+      {/* ── Phase 1: Planning (חדש) ── */}
       <PhaseBox
         label="בתכנון"
         count={planningCount}
@@ -189,9 +165,29 @@ export function Dashboard({ onOpenDiscussion }: Props) {
         })}
       </PhaseBox>
 
-      {/* ── Phase 2: Summary ── */}
+      {/* ── Phase 2: Coordinated (תואם) ── */}
       <PhaseBox
-        label="מחכה לסיכום"
+        label="תואם"
+        count={buckets.coordinated.length}
+        headerClass="bg-teal-500 text-white"
+        borderClass="border-teal-200 dark:border-teal-800"
+      >
+        <div className="space-y-2 pt-1">
+          {buckets.coordinated.map((d) => (
+            <DiscussionCard
+              key={d.id}
+              discussion={d}
+              lookupParticipant={lookupParticipant}
+              onOpen={onOpenDiscussion}
+              isNew={isNewDiscussion(d.id)}
+            />
+          ))}
+        </div>
+      </PhaseBox>
+
+      {/* ── Phase 3: Summary (ממתין לסיכום) ── */}
+      <PhaseBox
+        label="ממתין לסיכום"
         count={buckets.summary.length}
         headerClass="bg-amber-500 text-white"
         borderClass="border-amber-200 dark:border-amber-800"
@@ -203,47 +199,6 @@ export function Dashboard({ onOpenDiscussion }: Props) {
               discussion={d}
               lookupParticipant={lookupParticipant}
               onOpen={onOpenDiscussion}
-              isNew={isNewDiscussion(d.id)}
-            />
-          ))}
-        </div>
-      </PhaseBox>
-
-      {/* ── Phase 3: Approval ── */}
-      <PhaseBox
-        label="ממתין לאישור"
-        count={buckets.approval.length}
-        headerClass="bg-violet-500 text-white"
-        borderClass="border-violet-200 dark:border-violet-800"
-      >
-        <div className="space-y-2 pt-1">
-          {buckets.approval.map((d) => (
-            <DiscussionCard
-              key={d.id}
-              discussion={d}
-              lookupParticipant={lookupParticipant}
-              onOpen={onOpenDiscussion}
-              isNew={isNewDiscussion(d.id)}
-            />
-          ))}
-        </div>
-      </PhaseBox>
-
-      {/* ── Phase 4: Done ── */}
-      <PhaseBox
-        label="הסתיים"
-        count={buckets.done.length}
-        headerClass="bg-emerald-500 text-white"
-        borderClass="border-emerald-200 dark:border-emerald-800"
-      >
-        <div className="space-y-2 pt-1">
-          {buckets.done.slice(0, 5).map((d) => (
-            <DiscussionCard
-              key={d.id}
-              discussion={d}
-              lookupParticipant={lookupParticipant}
-              onOpen={onOpenDiscussion}
-              compact
               isNew={isNewDiscussion(d.id)}
             />
           ))}

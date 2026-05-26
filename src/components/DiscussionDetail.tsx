@@ -36,23 +36,32 @@ interface Props {
   onDuplicate?: (template: Discussion) => void;
 }
 
-const NEXT_ACTIONS: Record<DiscussionStatus, { label: string; to: DiscussionStatus }[]> = {
-  new: [{ label: T.markCoordinated, to: "coordinated" }],
-  coordinated: [{ label: T.markOccurred, to: "occurred" }],
-  occurred: [{ label: T.startSummary, to: "waiting_summary" }],
-  waiting_summary: [{ label: "סיכום הושלם — לאישור", to: "waiting_approval" }],
-  waiting_approval: [{ label: T.approveSummary, to: "distributed" }],
-  distributed: [],
-  cancelled: [],
-};
+/** Dynamic next actions based on status + requiresSummary flag. */
+function getNextActions(d: Discussion): { label: string; to: DiscussionStatus }[] {
+  switch (d.status) {
+    case "new":
+      return [{ label: T.markCoordinated, to: "coordinated" }];
+    case "coordinated":
+      if (d.requiresSummary) {
+        return [{ label: "הדיון התקיים — ממתין לסיכום", to: "waiting_summary" }];
+      }
+      return [{ label: T.markOccurred, to: "occurred" }];
+    case "waiting_summary":
+      return [{ label: "סיכום הושלם — הפצה", to: "distributed" }];
+    case "waiting_approval":
+      return [{ label: T.approveSummary, to: "distributed" }];
+    default:
+      return [];
+  }
+}
 
 const PREV_STATUS: Record<DiscussionStatus, DiscussionStatus | null> = {
   new: null,
   coordinated: "new",
   occurred: "coordinated",
-  waiting_summary: "occurred",
+  waiting_summary: "coordinated",
   waiting_approval: "waiting_summary",
-  distributed: "waiting_approval",
+  distributed: "waiting_summary",
   cancelled: null,
 };
 
@@ -94,7 +103,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
 
   if (!discussion) return null;
   const d = discussion;
-  const nextActions = NEXT_ACTIONS[d.status] ?? [];
+  const nextActions = getNextActions(d);
   const prevStatus = PREV_STATUS[d.status];
 
   const editIsValid =
@@ -126,10 +135,9 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     if (!note.trim()) return;
     await addNote(d.id, note);
     setNote("");
-    // Keep edit state in sync so switching to edit mode shows the updated notes
     setEdit((s) => ({
       ...s,
-      notes: s.notes ? `${s.notes}\n${note.trim()}` : note.trim(),
+      notes: s.notes ? s.notes + "\n" + note.trim() : note.trim(),
     }));
   }
 
@@ -168,7 +176,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       <div className="space-y-5">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={d.status} />
-          {d.requiresSummary && <Badge tone="muted">דורש סיכום + אישור + הפצה</Badge>}
+          {d.requiresSummary && <Badge tone="muted">דורש סיכום + הפצה</Badge>}
           {d.requiresSubstrate && <Badge tone="muted"><FileStack size={10} />דורש מצע</Badge>}
           {d.recurrence !== "none" && <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>}
         </div>
@@ -208,8 +216,14 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
             <Label>פעולות מהירות</Label>
             <div className="flex flex-wrap gap-2">
               {nextActions.map((a) => (
-                <Button key={a.to} size="sm" variant={a.to === "distributed" ? "primary" : "outline"} onClick={() => changeStatus(d.id, a.to)}>
-                  <CheckCircle2 size={14} />{a.label}{a.to !== "distributed" && <ChevronLeft size={14} />}
+                <Button
+                  key={a.to}
+                  size="sm"
+                  variant={a.to === "distributed" || a.to === "occurred" ? "primary" : "outline"}
+                  onClick={() => changeStatus(d.id, a.to)}
+                >
+                  <CheckCircle2 size={14} />{a.label}
+                  {a.to !== "distributed" && a.to !== "occurred" && <ChevronLeft size={14} />}
                 </Button>
               ))}
               {prevStatus && (

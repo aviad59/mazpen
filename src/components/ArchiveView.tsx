@@ -13,10 +13,15 @@ interface Props {
 export function ArchiveView({ onOpenDiscussion }: Props) {
   const { discussions, lookupParticipant } = useStore();
 
-  const completed = React.useMemo(
+  const archived = React.useMemo(
     () =>
       discussions
-        .filter((d) => d.status === "distributed" || d.status === "cancelled")
+        .filter(
+          (d) =>
+            d.status === "distributed" ||
+            d.status === "occurred" ||
+            d.status === "cancelled"
+        )
         .sort(byCreatedDesc),
     [discussions]
   );
@@ -25,10 +30,10 @@ export function ArchiveView({ onOpenDiscussion }: Props) {
     <div className="px-3 pb-24">
       <SectionHeader
         title="ארכיון"
-        hint="דיונים שטופלו במלואם או בוטלו"
-        count={completed.length}
+        hint="דיונים שהסתיימו, הופצו או בוטלו"
+        count={archived.length}
       />
-      {completed.length === 0 ? (
+      {archived.length === 0 ? (
         <EmptyState
           icon={<Archive size={36} />}
           title="הארכיון ריק"
@@ -36,7 +41,7 @@ export function ArchiveView({ onOpenDiscussion }: Props) {
         />
       ) : (
         <div className="space-y-2">
-          {completed.map((d) => (
+          {archived.map((d) => (
             <DiscussionCard
               key={d.id}
               discussion={d}
