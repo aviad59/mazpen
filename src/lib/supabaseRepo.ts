@@ -52,11 +52,21 @@ interface ParticipantGroupRow {
   participant_ids: string[];
 }
 
+/** Map legacy status values (from before the rename) to current ones. */
+function normalizeStatus(raw: string): DiscussionStatus {
+  const legacyMap: Record<string, DiscussionStatus> = {
+    scheduled: "new",
+    waiting_distribution: "distributed",
+    completed: "distributed",
+  };
+  return (legacyMap[raw] ?? raw) as DiscussionStatus;
+}
+
 function fromDiscussionRow(r: DiscussionRow): Discussion {
   return {
     id: r.id,
     name: r.name,
-    status: r.status,
+    status: normalizeStatus(r.status as string),
     dateWindow: r.date_window ?? "unspecified",
     scheduledWeek: r.scheduled_week ?? undefined,
     participantIds: r.participant_ids ?? [],
@@ -133,21 +143,24 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
     kind: "supabase",
 
     async listDiscussions() {
-      const { data, error } = await client.from("discussions").select(
-        "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,duration_minutes,notes,summary,history,created_at,updated_at"
-      );
+      const { data, error } = await client
+        .from("discussions")
+        .select(
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,duration_minutes,notes,summary,history,created_at,updated_at"
+        )
+        .limit(5000);
       if (error) throw error;
       return (data as DiscussionRow[]).map(fromDiscussionRow);
     },
 
     async listParticipants() {
-      const { data, error } = await client.from("participants").select("*");
+      const { data, error } = await client.from("participants").select("*").limit(5000);
       if (error) throw error;
       return (data as ParticipantRow[]).map(fromParticipantRow);
     },
 
     async listGroups() {
-      const { data, error } = await client.from("participant_groups").select("*");
+      const { data, error } = await client.from("participant_groups").select("*").limit(5000);
       if (error) throw error;
       return (data as ParticipantGroupRow[]).map(fromGroupRow);
     },

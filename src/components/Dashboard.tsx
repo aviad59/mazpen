@@ -63,9 +63,9 @@ const WINDOW_ICON: Record<DashboardSection, React.ReactNode> = {
 const PLANNING_WINDOWS: DashboardSection[] = [
   "this_week",
   "next_week",
-  "unspecified",
   "later",
   "in_a_month",
+  "unspecified",
 ];
 
 // ---- Bucketing -----------------------------------------------------------
