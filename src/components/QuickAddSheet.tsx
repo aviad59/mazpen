@@ -49,10 +49,13 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   React.useEffect(() => {
     if (participantIds.length === 0) return;
-    if (!leaderId || !participantIds.includes(leaderId)) {
-      setLeaderId(participantIds[0]);
+    const eligibleIds = participantIds.filter(
+      (id) => !participants.find((p) => p.id === id)?.optional
+    );
+    if (!leaderId || !eligibleIds.includes(leaderId)) {
+      setLeaderId(eligibleIds[0] ?? participantIds[0]);
     }
-  }, [participantIds, leaderId]);
+  }, [participantIds, leaderId, participants]);
 
   const hasParticipants = participantIds.length > 0;
   const hasLeader = !!leaderId && participantIds.includes(leaderId);
@@ -85,7 +88,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   const leaderOptions = participantIds
     .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p)
+    .filter((p): p is NonNullable<typeof p> => !!p && !p.optional)
     .map((p) => ({ value: p.id, label: p.name }));
 
   return (

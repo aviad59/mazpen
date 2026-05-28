@@ -31,14 +31,17 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
 
   React.useEffect(() => {
     if (state.participantIds.length === 0) return;
-    if (!state.leaderId || !state.participantIds.includes(state.leaderId)) {
-      onChange({ leaderId: state.participantIds[0] });
+    const eligibleIds = state.participantIds.filter(
+      (id) => !participants.find((p) => p.id === id)?.optional
+    );
+    if (!state.leaderId || !eligibleIds.includes(state.leaderId)) {
+      onChange({ leaderId: eligibleIds[0] ?? state.participantIds[0] });
     }
   }, [state.participantIds, state.leaderId, onChange]);
 
   const leaderOptions = state.participantIds
     .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p)
+    .filter((p): p is NonNullable<typeof p> => !!p && !p.optional)
     .map((p) => ({ value: p.id, label: p.name }));
 
   return (
