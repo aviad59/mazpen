@@ -9,7 +9,8 @@ create table if not exists public.participants (
   name         text not null,
   role         text,
   unit         text,
-  external     boolean not null default false
+  external     boolean not null default false,
+  optional     boolean not null default false
 );
 
 create table if not exists public.participant_groups (
@@ -39,6 +40,8 @@ create table if not exists public.discussions (
 );
 
 -- Migration for DBs that ran an earlier version of this schema:
+alter table public.participants
+  add column if not exists optional boolean not null default false;
 alter table public.discussions drop column if exists priority;
 alter table public.discussions drop column if exists attachments;
 alter table public.discussions

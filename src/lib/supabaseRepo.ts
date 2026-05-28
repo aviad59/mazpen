@@ -44,6 +44,7 @@ interface ParticipantRow {
   role: string | null;
   unit: string | null;
   external: boolean;
+  optional: boolean;
 }
 
 interface ParticipantGroupRow {
@@ -113,6 +114,7 @@ function fromParticipantRow(r: ParticipantRow): Participant {
     role: r.role ?? undefined,
     unit: r.unit ?? undefined,
     external: r.external ?? false,
+    optional: r.optional ?? false,
   };
 }
 
@@ -123,6 +125,7 @@ function toParticipantRow(p: Participant): ParticipantRow {
     role: p.role ?? null,
     unit: p.unit ?? null,
     external: !!p.external,
+    optional: !!p.optional,
   };
 }
 

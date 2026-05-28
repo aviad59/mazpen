@@ -53,6 +53,8 @@ export interface Participant {
   /** Unit the participant belongs to. "מצפן" = home (internal). */
   unit?: string;
   external?: boolean;
+  /** When true the participant's attendance is optional (רשות). */
+  optional?: boolean;
 }
 
 export interface ParticipantGroup {

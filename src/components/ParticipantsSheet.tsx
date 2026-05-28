@@ -20,9 +20,10 @@ interface DraftFields {
   name: string;
   role: string;
   unit: string;
+  optional: boolean;
 }
 
-const EMPTY: DraftFields = { name: "", role: "", unit: HOME_UNIT };
+const EMPTY: DraftFields = { name: "", role: "", unit: HOME_UNIT, optional: false };
 
 export function ParticipantsSheet({ open, onClose }: Props) {
   const { participants, addParticipant, updateParticipant, removeParticipant } =
@@ -70,6 +71,7 @@ export function ParticipantsSheet({ open, onClose }: Props) {
       role: draft.role.trim() || undefined,
       unit: draft.unit.trim() || HOME_UNIT,
       external: !!draft.unit.trim() && draft.unit.trim() !== HOME_UNIT,
+      optional: draft.optional,
     });
     setDraft(EMPTY);
     setCreating(false);
@@ -77,7 +79,7 @@ export function ParticipantsSheet({ open, onClose }: Props) {
 
   function startEdit(p: Participant) {
     setEditingId(p.id);
-    setEditDraft({ name: p.name, role: p.role ?? "", unit: p.unit ?? HOME_UNIT });
+    setEditDraft({ name: p.name, role: p.role ?? "", unit: p.unit ?? HOME_UNIT, optional: p.optional ?? false });
   }
 
   async function commitEdit() {
@@ -91,6 +93,7 @@ export function ParticipantsSheet({ open, onClose }: Props) {
       role: editDraft.role.trim() || undefined,
       unit,
       external: unit !== HOME_UNIT,
+      optional: editDraft.optional,
     });
     setEditingId(null);
   }
@@ -174,6 +177,15 @@ export function ParticipantsSheet({ open, onClose }: Props) {
                 יחידה ששונה מ-"{HOME_UNIT}" תסומן כחיצונית.
               </p>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={draft.optional}
+                onChange={(e) => setDraft({ ...draft, optional: e.target.checked })}
+                className="accent-accent w-4 h-4"
+              />
+              <span className="text-sm">השתתפות רשות</span>
+            </label>
           </Card>
         )}
 
@@ -195,6 +207,7 @@ export function ParticipantsSheet({ open, onClose }: Props) {
           <ul className="space-y-2">
             {filtered.map((p) => {
               const isExternal = !!p.unit && p.unit !== HOME_UNIT;
+              const isOptional = !!p.optional;
               const isEditing = editingId === p.id;
               return (
                 <li key={p.id}>
@@ -222,6 +235,17 @@ export function ParticipantsSheet({ open, onClose }: Props) {
                           }
                           placeholder="יחידה"
                         />
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={editDraft.optional}
+                            onChange={(e) =>
+                              setEditDraft({ ...editDraft, optional: e.target.checked })
+                            }
+                            className="accent-accent w-4 h-4"
+                          />
+                          <span className="text-sm">השתתפות רשות</span>
+                        </label>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -240,11 +264,12 @@ export function ParticipantsSheet({ open, onClose }: Props) {
                       <div className="flex items-center gap-3">
                         <Avatar name={p.name} size="md" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-semibold truncate">
                               {p.name}
                             </span>
                             {isExternal && <Badge tone="warning">חיצוני</Badge>}
+                            {isOptional && <Badge tone="muted">רשות</Badge>}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">
                             {[p.role, p.unit].filter(Boolean).join(" · ")}

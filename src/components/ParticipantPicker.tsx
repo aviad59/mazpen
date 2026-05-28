@@ -212,10 +212,13 @@ export function ParticipantPicker({
                     >
                       <Avatar name={p.name} size="sm" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <div className="text-sm font-medium truncate flex items-center gap-1.5 flex-wrap">
                           <span className="truncate">{p.name}</span>
                           {isExternal && (
                             <Badge tone="warning">חיצוני</Badge>
+                          )}
+                          {p.optional && (
+                            <Badge tone="muted">רשות</Badge>
                           )}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
