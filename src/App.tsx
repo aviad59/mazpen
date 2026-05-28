@@ -7,6 +7,7 @@ import { BottomNav, type Tab } from "./components/BottomNav";
 import { QuickAddSheet } from "./components/QuickAddSheet";
 import { DiscussionDetail } from "./components/DiscussionDetail";
 import { ParticipantsSheet } from "./components/ParticipantsSheet";
+import { GroupsSheet } from "./components/GroupsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { IOSInstallBanner } from "./components/IOSInstallBanner";
@@ -39,6 +40,7 @@ export default function App() {
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
+  const [groupsOpen, setGroupsOpen] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(() => getAndClearSharedId());
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
@@ -112,6 +114,7 @@ export default function App() {
         }}
         onOpenSearch={() => setTab("search")}
         onOpenParticipants={() => setParticipantsOpen(true)}
+        onOpenGroups={() => setGroupsOpen(true)}
         onClearAll={handleClearAll}
         pendingScheduling={pendingScheduling}
         onSignOut={signOut}
@@ -158,6 +161,11 @@ export default function App() {
       <ParticipantsSheet
         open={participantsOpen}
         onClose={() => setParticipantsOpen(false)}
+      />
+
+      <GroupsSheet
+        open={groupsOpen}
+        onClose={() => setGroupsOpen(false)}
       />
     </div>
   );

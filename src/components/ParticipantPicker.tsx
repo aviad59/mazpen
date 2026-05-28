@@ -34,6 +34,7 @@ interface Props {
  */
 export function ParticipantPicker({
   participants,
+  groups = [],
   value,
   onChange,
   onCreate,
@@ -94,8 +95,42 @@ export function ParticipantPicker({
     setDraftUnit(HOME_UNIT);
   }
 
+  function addGroup(groupId: string) {
+    const group = groups.find((g) => g.id === groupId);
+    if (!group) return;
+    const next = [...new Set([...value, ...group.participantIds])];
+    onChange(next);
+  }
+
   return (
     <div className="space-y-2">
+      {/* Group quick-add buttons */}
+      {groups.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {groups.map((g) => {
+            const allIn = g.participantIds.every((id) => value.includes(id));
+            return (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => addGroup(g.id)}
+                disabled={allIn}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  allIn
+                    ? "border-accent/30 bg-accent/10 text-accent cursor-default"
+                    : "border-border bg-card hover:bg-muted text-foreground"
+                )}
+              >
+                {allIn && <Check size={11} />}
+                {g.name}
+                <span className="text-muted-foreground">({g.participantIds.length})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Selected chips */}
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
