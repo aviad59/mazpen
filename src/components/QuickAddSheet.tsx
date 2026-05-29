@@ -49,15 +49,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   const isPE = isPEDiscussion(name);
 
-  // Auto-clear leader/summary/substrate when PE is detected
-  React.useEffect(() => {
-    if (isPE) {
-      setLeaderId("");
-      setRequiresSummary(false);
-      setRequiresSubstrate(false);
-    }
-  }, [isPE]);
-
+  // Auto-select leader when participants change (skip when PE)
   React.useEffect(() => {
     if (isPE || participantIds.length === 0) return;
     const eligibleIds = participantIds.filter(
@@ -68,8 +60,13 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     }
   }, [isPE, participantIds, leaderId, participants]);
 
+  // Derive effective submission values — PE overrides state directly at render time
+  const effectiveLeaderId = isPE ? "" : leaderId;
+  const effectiveRequiresSummary = isPE ? false : requiresSummary;
+  const effectiveRequiresSubstrate = isPE ? false : requiresSubstrate;
+
   const hasParticipants = participantIds.length > 0;
-  const hasLeader = !!leaderId && participantIds.includes(leaderId);
+  const hasLeader = !!effectiveLeaderId && participantIds.includes(effectiveLeaderId);
   const canSubmit = !!name.trim() && hasParticipants && (isPE || hasLeader) && !submitting;
 
   const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
@@ -83,9 +80,9 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         name: name.trim(),
         dateWindow,
         participantIds,
-        leaderId,
-        requiresSummary,
-        requiresSubstrate,
+        leaderId: effectiveLeaderId || undefined,
+        requiresSummary: effectiveRequiresSummary,
+        requiresSubstrate: effectiveRequiresSubstrate,
         recurrence,
         durationMinutes: parsedDuration && !isNaN(parsedDuration) ? parsedDuration : undefined,
         notes: notes.trim() || undefined,

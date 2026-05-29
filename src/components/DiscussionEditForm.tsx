@@ -31,13 +31,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
 
   const isPE = isPEDiscussion(state.name);
 
-  // Auto-clear leader/summary/substrate when PE is detected
-  React.useEffect(() => {
-    if (isPE) {
-      onChange({ leaderId: "", requiresSummary: false, requiresSubstrate: false });
-    }
-  }, [isPE]);
-
+  // Auto-select leader when participants change (skip when PE)
   React.useEffect(() => {
     if (isPE || state.participantIds.length === 0) return;
     const eligibleIds = state.participantIds.filter(
@@ -47,6 +41,11 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       onChange({ leaderId: eligibleIds[0] ?? state.participantIds[0] });
     }
   }, [state.participantIds, state.leaderId, onChange]);
+
+  // Derive effective values — PE overrides at render time, no async effects needed
+  const effectiveLeaderId = isPE ? "" : (state.leaderId ?? "");
+  const effectiveRequiresSummary = isPE ? false : state.requiresSummary;
+  const effectiveRequiresSubstrate = isPE ? false : state.requiresSubstrate;
 
   const leaderOptions = state.participantIds
     .map((id) => participants.find((p) => p.id === id))
@@ -88,7 +87,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
             </div>
           ) : (
             <Select
-              value={state.leaderId ?? ""}
+              value={effectiveLeaderId}
               onChange={(e) => onChange({ leaderId: e.target.value })}
               options={leaderOptions}
             />
@@ -121,8 +120,8 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       </div>
 
       <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-        <Switch checked={state.requiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} disabled={isPE} />
-        <Switch checked={state.requiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} disabled={isPE} />
+        <Switch checked={effectiveRequiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} disabled={isPE} />
+        <Switch checked={effectiveRequiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} disabled={isPE} />
       </div>
 
       <div>

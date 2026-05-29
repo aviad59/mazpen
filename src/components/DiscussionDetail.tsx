@@ -26,7 +26,7 @@ import { ActivityTimeline } from "./ActivityTimeline";
 import { StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
-import { HOME_UNIT, RECURRENCE_LABEL, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import { HOME_UNIT, isPEDiscussion, RECURRENCE_LABEL, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
 import { cn } from "@/lib/utils";
 import type { Discussion, DiscussionStatus } from "@/types";
 
@@ -108,11 +108,11 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
   const nextActions = getNextActions(d);
   const prevStatus = PREV_STATUS[d.status];
 
+  const editIsPE = isPEDiscussion(edit.name);
   const editIsValid =
     edit.name.trim().length > 0 &&
     edit.participantIds.length > 0 &&
-    !!edit.leaderId &&
-    edit.participantIds.includes(edit.leaderId);
+    (editIsPE || (!!edit.leaderId && edit.participantIds.includes(edit.leaderId)));
 
   async function persistEdits() {
     if (!d || !editIsValid) return;
@@ -120,9 +120,9 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       name: edit.name.trim(),
       notes: edit.notes.trim() || undefined,
       participantIds: edit.participantIds,
-      leaderId: edit.leaderId,
-      requiresSummary: edit.requiresSummary,
-      requiresSubstrate: edit.requiresSubstrate,
+      leaderId: editIsPE ? undefined : edit.leaderId,
+      requiresSummary: editIsPE ? false : edit.requiresSummary,
+      requiresSubstrate: editIsPE ? false : edit.requiresSubstrate,
       recurrence: edit.recurrence,
       durationMinutes: edit.durationMinutes,
     };
