@@ -120,8 +120,16 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       </div>
 
       <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-        <Switch checked={effectiveRequiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} disabled={isPE} />
-        <Switch checked={effectiveRequiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} disabled={isPE} />
+        {isPE ? (
+          <p className="text-sm text-muted-foreground">
+            זיהינו שמדובר בפ&quot;ע/פ&quot;א — אין צורך בסיכום או מצע
+          </p>
+        ) : (
+          <>
+            <Switch checked={effectiveRequiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} />
+            <Switch checked={effectiveRequiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} />
+          </>
+        )}
       </div>
 
       <div>

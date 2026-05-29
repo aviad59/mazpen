@@ -184,8 +184,16 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         </div>
 
         <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-          <Switch checked={requiresSummary} onChange={setRequiresSummary} label={T.requiresSummary} disabled={isPE} />
-          <Switch checked={requiresSubstrate} onChange={setRequiresSubstrate} label={T.requiresSubstrate} disabled={isPE} />
+          {isPE ? (
+            <p className="text-sm text-muted-foreground">
+              זיהינו שמדובר בפ&quot;ע/פ&quot;א — אין צורך בסיכום או מצע
+            </p>
+          ) : (
+            <>
+              <Switch checked={requiresSummary} onChange={setRequiresSummary} label={T.requiresSummary} />
+              <Switch checked={requiresSubstrate} onChange={setRequiresSubstrate} label={T.requiresSubstrate} />
+            </>
+          )}
         </div>
 
         <div>
