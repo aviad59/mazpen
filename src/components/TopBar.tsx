@@ -1,4 +1,4 @@
-import { Compass, Layers, LogOut, Plus, Search, Trash2, Users } from "lucide-react";
+import { Compass, LogOut, Plus, Search, Trash2, Users } from "lucide-react";
 import { Button } from "./ui/Button";
 import { APP_NAME, APP_TAGLINE } from "@/lib/he";
 
@@ -6,7 +6,6 @@ interface Props {
   onAdd: () => void;
   onOpenSearch: () => void;
   onOpenParticipants: () => void;
-  onOpenGroups: () => void;
   onClearAll: () => void;
   pendingScheduling: number;
   onSignOut?: () => void;
@@ -17,7 +16,6 @@ export function TopBar({
   onAdd,
   onOpenSearch,
   onOpenParticipants,
-  onOpenGroups,
   onClearAll,
   pendingScheduling,
   onSignOut,
@@ -56,18 +54,10 @@ export function TopBar({
         <button
           onClick={onOpenParticipants}
           className="rounded-lg p-2 hover:bg-muted no-tap-highlight"
-          aria-label="ניהול משתתפים"
-          title="ניהול משתתפים"
+          aria-label="ניהול משתתפים וקבוצות"
+          title="ניהול משתתפים וקבוצות"
         >
           <Users size={18} />
-        </button>
-        <button
-          onClick={onOpenGroups}
-          className="rounded-lg p-2 hover:bg-muted no-tap-highlight"
-          aria-label="ניהול קבוצות"
-          title="ניהול קבוצות"
-        >
-          <Layers size={18} />
         </button>
         <button
           onClick={onClearAll}
