@@ -27,7 +27,7 @@ create table if not exists public.discussions (
   scheduled_week          text,
   participant_ids         text[] not null default array[]::text[],
   extra_participants      text[],
-  leader_id               text not null,
+  leader_id               text,
   requires_summary        boolean not null default true,
   requires_substrate      boolean not null default true,
   recurrence              text not null default 'none',
@@ -53,7 +53,7 @@ alter table public.discussions
 alter table public.discussions
   add column if not exists duration_minutes integer;
 alter table public.discussions
-  alter column leader_id set not null;
+  alter column leader_id drop not null;
 
 create index if not exists discussions_status_idx      on public.discussions (status);
 create index if not exists discussions_date_window_idx on public.discussions (date_window);

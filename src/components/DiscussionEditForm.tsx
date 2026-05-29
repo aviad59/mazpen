@@ -5,7 +5,7 @@ import { Switch } from "./ui/Switch";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
-import { RECURRENCE_LABEL, STATUS_LABEL, T } from "@/lib/he";
+import { RECURRENCE_LABEL, STATUS_LABEL, T, isPEDiscussion } from "@/lib/he";
 import type { DateWindow, Discussion, DiscussionStatus, Recurrence } from "@/types";
 
 export interface EditState {
@@ -29,8 +29,17 @@ interface Props {
 export function DiscussionEditForm({ discussion, state, onChange }: Props) {
   const { participants, groups, addParticipant, changeStatus } = useStore();
 
+  const isPE = isPEDiscussion(state.name);
+
+  // Auto-clear leader/summary/substrate when PE is detected
   React.useEffect(() => {
-    if (state.participantIds.length === 0) return;
+    if (isPE) {
+      onChange({ leaderId: "", requiresSummary: false, requiresSubstrate: false });
+    }
+  }, [isPE]);
+
+  React.useEffect(() => {
+    if (isPE || state.participantIds.length === 0) return;
     const eligibleIds = state.participantIds.filter(
       (id) => !participants.find((p) => p.id === id)?.optional
     );
@@ -72,12 +81,18 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
 
       {state.participantIds.length > 0 && (
         <div>
-          <Label>{T.leader} *</Label>
-          <Select
-            value={state.leaderId}
-            onChange={(e) => onChange({ leaderId: e.target.value })}
-            options={leaderOptions}
-          />
+          <Label>{T.leader}{!isPE && " *"}</Label>
+          {isPE ? (
+            <div className="h-11 w-full rounded-lg border border-input bg-muted/40 px-3 flex items-center text-sm text-muted-foreground cursor-not-allowed">
+              זיהינו שמדובר בפ&quot;ע/פ&quot;א — אין צורך במוביל
+            </div>
+          ) : (
+            <Select
+              value={state.leaderId ?? ""}
+              onChange={(e) => onChange({ leaderId: e.target.value })}
+              options={leaderOptions}
+            />
+          )}
         </div>
       )}
 
@@ -106,8 +121,8 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
       </div>
 
       <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-        <Switch checked={state.requiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} />
-        <Switch checked={state.requiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} />
+        <Switch checked={state.requiresSummary} onChange={(v) => onChange({ requiresSummary: v })} label={T.requiresSummary} disabled={isPE} />
+        <Switch checked={state.requiresSubstrate} onChange={(v) => onChange({ requiresSubstrate: v })} label={T.requiresSubstrate} disabled={isPE} />
       </div>
 
       <div>

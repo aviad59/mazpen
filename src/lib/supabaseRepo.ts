@@ -26,7 +26,7 @@ interface DiscussionRow {
   scheduled_week: string | null;
   participant_ids: string[];
   extra_participants: string[] | null;
-  leader_id: string;
+  leader_id: string | null;
   requires_summary: boolean;
   requires_substrate: boolean;
   recurrence: Recurrence;
@@ -72,7 +72,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     scheduledWeek: r.scheduled_week ?? undefined,
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
-    leaderId: r.leader_id,
+    leaderId: r.leader_id ?? undefined,
     requiresSummary: r.requires_summary,
     requiresSubstrate: r.requires_substrate ?? true,
     recurrence: r.recurrence ?? "none",
@@ -94,7 +94,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     scheduled_week: d.scheduledWeek ?? null,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
-    leader_id: d.leaderId,
+    leader_id: d.leaderId ?? null,
     requires_summary: d.requiresSummary,
     requires_substrate: d.requiresSubstrate,
     recurrence: d.recurrence,

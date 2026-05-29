@@ -93,7 +93,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       notes: discussion.notes ?? "",
       dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
-      leaderId: discussion.leaderId,
+      leaderId: discussion.leaderId ?? "",
       requiresSummary: discussion.requiresSummary,
       requiresSubstrate: discussion.requiresSubstrate,
       recurrence: discussion.recurrence,
@@ -205,7 +205,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
     </div>
   );
 
-  const leader = lookupParticipant(d.leaderId);
+  const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
   const externalUnitsList = Array.from(
     new Set(d.participantIds.map((id) => lookupParticipant(id)?.unit).filter((u): u is string => !!u && u !== HOME_UNIT))
   );

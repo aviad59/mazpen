@@ -14,6 +14,15 @@ export const APP_TAGLINE = "מעקב דיונים מבצעי";
 /** Home command name — participants with this unit are internal. */
 export const HOME_UNIT = "מצפן";
 
+/**
+ * Returns true when a discussion name starts with פע / פ"ע / פא / פ"א
+ * (both ASCII " and Hebrew ״ gershayim are accepted).
+ * These discussions have no leader, no summary, and no substrate.
+ */
+export function isPEDiscussion(name: string): boolean {
+  return /^פ["״]?[עא]/.test(name.trim());
+}
+
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {
   new: "חדש",
   coordinated: "תואם",

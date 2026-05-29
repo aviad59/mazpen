@@ -27,7 +27,7 @@ import {
 } from "@/lib/db";
 import { isBackendConfigured } from "@/lib/repo";
 import { supabase } from "@/lib/supabaseClient";
-import { WINDOW_LABEL } from "@/lib/he";
+import { WINDOW_LABEL, isPEDiscussion } from "@/lib/he";
 import { uid, scheduledWeekForWindow } from "@/lib/utils";
 
 /** Set by App.tsx whenever the auth user changes. Used to stamp HistoryEvents. */
@@ -167,7 +167,7 @@ async function upsert(discussion: Discussion, event?: HistoryEvent) {
 
 export type CreateDiscussionInput = {
   name: string;
-  leaderId: string;
+  leaderId?: string;
   participantIds: string[];
   dateWindow?: DateWindow;
   requiresSummary?: boolean;
@@ -178,8 +178,9 @@ export type CreateDiscussionInput = {
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
-  if (!input.leaderId) throw new Error("חובה לבחור מוביל לדיון");
-  if (!input.participantIds.includes(input.leaderId)) throw new Error("המוביל חייב להיות אחד מהמשתתפים");
+  const isPE = isPEDiscussion(input.name);
+  if (!isPE && !input.leaderId) throw new Error("חובה לבחור מוביל לדיון");
+  if (input.leaderId && !input.participantIds.includes(input.leaderId)) throw new Error("המוביל חייב להיות אחד מהמשתתפים");
   const nowIso = new Date().toISOString();
   const resolvedWindow = input.dateWindow ?? "this_week";
   const d: Discussion = {

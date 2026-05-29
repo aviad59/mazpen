@@ -8,7 +8,7 @@ import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
-import { T, RECURRENCE_LABEL } from "@/lib/he";
+import { T, RECURRENCE_LABEL, isPEDiscussion } from "@/lib/he";
 import type { DateWindow, Discussion, Recurrence } from "@/types";
 
 interface Props {
@@ -57,9 +57,20 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     }
   }, [participantIds, leaderId, participants]);
 
+  const isPE = isPEDiscussion(name);
+
+  // Auto-clear leader/summary/substrate when PE is detected
+  React.useEffect(() => {
+    if (isPE) {
+      setLeaderId("");
+      setRequiresSummary(false);
+      setRequiresSubstrate(false);
+    }
+  }, [isPE]);
+
   const hasParticipants = participantIds.length > 0;
   const hasLeader = !!leaderId && participantIds.includes(leaderId);
-  const canSubmit = !!name.trim() && hasParticipants && hasLeader && !submitting;
+  const canSubmit = !!name.trim() && hasParticipants && (isPE || hasLeader) && !submitting;
 
   const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
 
@@ -148,12 +159,18 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
         {hasParticipants && (
           <div>
-            <Label>{T.leader} *</Label>
-            <Select
-              value={leaderId}
-              onChange={(e) => setLeaderId(e.target.value)}
-              options={leaderOptions}
-            />
+            <Label>{T.leader}{!isPE && " *"}</Label>
+            {isPE ? (
+              <div className="h-11 w-full rounded-lg border border-input bg-muted/40 px-3 flex items-center text-sm text-muted-foreground cursor-not-allowed">
+                זיהינו שמדובר בפ&quot;ע/פ&quot;א — אין צורך במוביל
+              </div>
+            ) : (
+              <Select
+                value={leaderId}
+                onChange={(e) => setLeaderId(e.target.value)}
+                options={leaderOptions}
+              />
+            )}
           </div>
         )}
 
@@ -170,8 +187,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         </div>
 
         <div className="rounded-lg bg-muted/50 p-3 space-y-2">
-          <Switch checked={requiresSummary} onChange={setRequiresSummary} label={T.requiresSummary} />
-          <Switch checked={requiresSubstrate} onChange={setRequiresSubstrate} label={T.requiresSubstrate} />
+          <Switch checked={requiresSummary} onChange={setRequiresSummary} label={T.requiresSummary} disabled={isPE} />
+          <Switch checked={requiresSubstrate} onChange={setRequiresSubstrate} label={T.requiresSubstrate} disabled={isPE} />
         </div>
 
         <div>

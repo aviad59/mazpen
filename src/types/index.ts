@@ -91,8 +91,8 @@ export interface Discussion {
 
   participantIds: string[];
   extraParticipants?: string[];
-  /** Required — every discussion has a leader (defaults to the first participant). */
-  leaderId: string;
+  /** Leader of the discussion. Absent for פ"ע / פ"א type discussions. */
+  leaderId?: string;
 
   /**
    * Whether this discussion requires a written summary.
