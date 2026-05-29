@@ -15,12 +15,19 @@ export const APP_TAGLINE = "מעקב דיונים מבצעי";
 export const HOME_UNIT = "מצפן";
 
 /**
- * Returns true when a discussion name starts with פע / פ"ע / פא / פ"א
- * (both ASCII " and Hebrew ״ gershayim are accepted).
+ * Returns true when a discussion name starts with פע / פ"ע / פא / פ"א.
+ * Accepts any separator character between פ and ע/א (handles all quote variants).
  * These discussions have no leader, no summary, and no substrate.
  */
 export function isPEDiscussion(name: string): boolean {
-  return /^פ["״]?[עא]/.test(name.trim());
+  const t = name.trim();
+  if (t.length < 2) return false;
+  if (t[0] !== 'פ') return false;
+  // פע / פא  (no separator)
+  if (t[1] === 'ע' || t[1] === 'א') return true;
+  // פ?ע / פ?א  (any single separator character, e.g. " ״ " ")
+  if (t.length >= 3 && (t[2] === 'ע' || t[2] === 'א')) return true;
+  return false;
 }
 
 export const STATUS_LABEL: Record<DiscussionStatus, string> = {

@@ -47,16 +47,6 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
-  React.useEffect(() => {
-    if (participantIds.length === 0) return;
-    const eligibleIds = participantIds.filter(
-      (id) => !participants.find((p) => p.id === id)?.optional
-    );
-    if (!leaderId || !eligibleIds.includes(leaderId)) {
-      setLeaderId(eligibleIds[0] ?? participantIds[0]);
-    }
-  }, [participantIds, leaderId, participants]);
-
   const isPE = isPEDiscussion(name);
 
   // Auto-clear leader/summary/substrate when PE is detected
@@ -67,6 +57,16 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
       setRequiresSubstrate(false);
     }
   }, [isPE]);
+
+  React.useEffect(() => {
+    if (isPE || participantIds.length === 0) return;
+    const eligibleIds = participantIds.filter(
+      (id) => !participants.find((p) => p.id === id)?.optional
+    );
+    if (!leaderId || !eligibleIds.includes(leaderId)) {
+      setLeaderId(eligibleIds[0] ?? participantIds[0]);
+    }
+  }, [isPE, participantIds, leaderId, participants]);
 
   const hasParticipants = participantIds.length > 0;
   const hasLeader = !!leaderId && participantIds.includes(leaderId);
