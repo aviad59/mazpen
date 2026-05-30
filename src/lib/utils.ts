@@ -87,22 +87,24 @@ function fmt(d: Date): string {
 }
 
 /** Return the date range string (Sunday–Thursday) for a dashboard section.
- *  Accounts for Fri/Sat pre-week shift so headers always match section contents. */
+ *  On Fri/Sat only this_week and next_week shift forward; later/in_a_month stay anchored. */
 export function sectionDateRange(section: DashboardSection): string | null {
-  const adj = fridaySatAdj();
+  const adj = fridaySatAdj(); // 0 or 1
   if (section === "this_week" || section === "next_week") {
+    // these two sections shift together on Fri/Sat
     const base = section === "this_week" ? 0 : 1;
     const sun = new Date(getWeekStart(base + adj) + "T00:00:00");
     const thu = new Date(sun); thu.setDate(sun.getDate() + 4);
     return `${fmt(sun)}–${fmt(thu)}`;
   }
   if (section === "later") {
-    const sun = new Date(getWeekStart(2 + adj) + "T00:00:00");
-    const thu = new Date(getWeekStart(3 + adj) + "T00:00:00"); thu.setDate(thu.getDate() + 4);
+    // stays anchored to calendar regardless of day of week
+    const sun = new Date(getWeekStart(2) + "T00:00:00");
+    const thu = new Date(getWeekStart(3) + "T00:00:00"); thu.setDate(thu.getDate() + 4);
     return `${fmt(sun)}–${fmt(thu)}`;
   }
   if (section === "in_a_month") {
-    const sun = new Date(getWeekStart(4 + adj) + "T00:00:00");
+    const sun = new Date(getWeekStart(4) + "T00:00:00");
     return `מ-${fmt(sun)}`;
   }
   return null;
@@ -129,14 +131,15 @@ export function effectiveScheduledSection(
 ): DashboardSection {
   if (!scheduledWeek) return dateWindow === "unspecified" ? "unspecified" : (dateWindow as DashboardSection);
 
-  // Parse both dates as local midnight to avoid UTC-offset issues.
-  // On Fri/Sat, the reference advances 1 week so the upcoming work week
-  // already appears as "this_week" before Sunday arrives.
+  // Parse as local midnight to avoid UTC-offset shifting dates.
+  // Ref is always this week's Sunday. On Fri/Sat, widen the this_week threshold
+  // by 7 days so "next_week" discussions move early — but later/in_a_month stay put.
   const sw = new Date(scheduledWeek + "T00:00:00");
-  const ref = new Date(getWeekStart(fridaySatAdj()) + "T00:00:00");
+  const ref = new Date(getWeekStart(0) + "T00:00:00");
   const diffDays = (sw.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24);
+  const earlyAdj = fridaySatAdj() * 7; // 0 or 7
 
-  if (diffDays <= 0) return "this_week";
+  if (diffDays <= earlyAdj) return "this_week";
   if (diffDays <= 7) return "next_week";
   if (diffDays <= 28) return "later";
   return "in_a_month";
