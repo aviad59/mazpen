@@ -23,6 +23,8 @@ interface Props {
   onChange: (next: string[]) => void;
   /** Create-and-select handler; receives full role + unit when available. */
   onCreate?: (input: CreateInput) => Promise<Participant> | Participant;
+  /** Discussion name — participants whose unit appears in it float to the top. */
+  nameHint?: string;
   placeholder?: string;
   maxHeight?: number;
 }
@@ -38,6 +40,7 @@ export function ParticipantPicker({
   value,
   onChange,
   onCreate,
+  nameHint = "",
   placeholder = "חפש משתתף...",
   maxHeight = 220,
 }: Props) {
@@ -52,14 +55,27 @@ export function ParticipantPicker({
 
   const filtered = React.useMemo(() => {
     const q = query.trim();
-    if (!q) return participants;
-    return participants.filter(
-      (p) =>
-        p.name.includes(q) ||
-        (p.role && p.role.includes(q)) ||
-        (p.unit && p.unit.includes(q))
-    );
-  }, [participants, query]);
+    const list = q
+      ? participants.filter(
+          (p) =>
+            p.name.includes(q) ||
+            (p.role && p.role.includes(q)) ||
+            (p.unit && p.unit.includes(q))
+        )
+      : [...participants];
+
+    // Boost participants whose unit appears in the discussion name
+    if (nameHint.trim()) {
+      list.sort((a, b) => {
+        const aMatch = !!(a.unit && a.unit !== HOME_UNIT && nameHint.includes(a.unit));
+        const bMatch = !!(b.unit && b.unit !== HOME_UNIT && nameHint.includes(b.unit));
+        if (aMatch !== bMatch) return aMatch ? -1 : 1;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [participants, query, nameHint]);
 
   const toggle = (id: string) => {
     if (value.includes(id)) onChange(value.filter((v) => v !== id));

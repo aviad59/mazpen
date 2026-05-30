@@ -146,6 +146,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             value={participantIds}
             onChange={setParticipantIds}
             onCreate={addParticipant}
+            nameHint={name}
           />
           {!hasParticipants && (
             <p className="text-[11px] text-muted-foreground mt-1">

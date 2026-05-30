@@ -72,6 +72,7 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
           value={state.participantIds}
           onChange={(ids) => onChange({ participantIds: ids })}
           onCreate={addParticipant}
+          nameHint={state.name}
         />
         {state.participantIds.length === 0 && (
           <p className="text-[11px] text-destructive mt-1">דיון חייב לכלול לפחות משתתף אחד.</p>
