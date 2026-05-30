@@ -71,8 +71,32 @@ export function getWeekStart(offsetWeeks: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Format a date as D.M (e.g. 24.5) */
+function fmt(d: Date): string {
+  return `${d.getDate()}.${d.getMonth() + 1}`;
+}
+
+/** Return the date range string (Sunday–Thursday) for a dashboard section. */
+export function sectionDateRange(section: DashboardSection): string | null {
+  if (section === "this_week" || section === "next_week") {
+    const offset = section === "this_week" ? 0 : 1;
+    const sun = new Date(getWeekStart(offset) + "T00:00:00");
+    const thu = new Date(sun); thu.setDate(sun.getDate() + 4);
+    return `${fmt(sun)}–${fmt(thu)}`;
+  }
+  if (section === "later") {
+    const sun = new Date(getWeekStart(2) + "T00:00:00");
+    const thu = new Date(getWeekStart(3) + "T00:00:00"); thu.setDate(thu.getDate() + 4);
+    return `${fmt(sun)}–${fmt(thu)}`;
+  }
+  if (section === "in_a_month") {
+    const sun = new Date(getWeekStart(4) + "T00:00:00");
+    return `מ-${fmt(sun)}`;
+  }
+  return null;
+}
+
 /**
- * Derive the ISO Sunday date for a given DateWindow.
  * Returns undefined for "unspecified".
  */
 export function scheduledWeekForWindow(w: DateWindow): string | undefined {

@@ -5,7 +5,7 @@ import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
 import { useStore } from "@/store/useStore";
 import { SECTION_HINT, SECTION_LABEL, T } from "@/lib/he";
-import { byCreatedDesc, effectiveScheduledSection } from "@/lib/utils";
+import { byCreatedDesc, effectiveScheduledSection, sectionDateRange } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { DashboardSection, Discussion } from "@/types";
 
@@ -141,7 +141,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
             <section key={w}>
               <SectionHeader
                 title={SECTION_LABEL[w]}
-                hint={items.length > 0 ? SECTION_HINT[w] : undefined}
+                hint={items.length > 0 ? (sectionDateRange(w) ?? SECTION_HINT[w]) : undefined}
                 count={items.length}
                 variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
               />
