@@ -1,4 +1,5 @@
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -9,6 +10,8 @@ interface Props {
   className?: string;
   /** Right-side optional content (e.g. "show more" link). */
   trailing?: React.ReactNode;
+  collapsed?: boolean;
+  onToggle?: () => void;
 }
 
 export function SectionHeader({
@@ -18,15 +21,22 @@ export function SectionHeader({
   variant = "default",
   className,
   trailing,
+  collapsed,
+  onToggle,
 }: Props) {
+  const isCollapsible = typeof onToggle === "function";
+
   return (
     <div
+      role={isCollapsible ? "button" : undefined}
+      onClick={onToggle}
       className={cn(
         "flex items-start justify-between gap-3 px-1 pt-4 pb-2",
+        isCollapsible && "cursor-pointer select-none",
         className
       )}
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h2
             className={cn(
@@ -55,6 +65,15 @@ export function SectionHeader({
         )}
       </div>
       {trailing}
+      {isCollapsible && (
+        <ChevronDown
+          size={16}
+          className={cn(
+            "mt-1 shrink-0 text-muted-foreground transition-transform duration-200",
+            collapsed && "-rotate-90"
+          )}
+        />
+      )}
     </div>
   );
 }

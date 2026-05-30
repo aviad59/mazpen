@@ -101,6 +101,9 @@ function bucketize(discussions: Discussion[]): Buckets {
 export function Dashboard({ onOpenDiscussion }: Props) {
   const { discussions, lookupParticipant, loaded, isNewDiscussion } = useStore();
   const buckets = React.useMemo(() => bucketize(discussions), [discussions]);
+  const [collapsed, setCollapsed] = React.useState<Partial<Record<DashboardSection, boolean>>>({});
+  const toggleSection = (w: DashboardSection) =>
+    setCollapsed((prev) => ({ ...prev, [w]: !prev[w] }));
 
   if (!loaded) {
     return (
@@ -137,6 +140,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
       >
         {PLANNING_WINDOWS.map((w) => {
           const items = buckets.planning[w];
+          const isCollapsed = !!collapsed[w];
           return (
             <section key={w}>
               <SectionHeader
@@ -144,21 +148,25 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                 hint={items.length > 0 ? (sectionDateRange(w) ?? SECTION_HINT[w]) : undefined}
                 count={items.length}
                 variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
+                collapsed={isCollapsed}
+                onToggle={() => toggleSection(w)}
               />
-              {items.length === 0 ? (
-                <EmptyState icon={WINDOW_ICON[w]} title={T.empty[w]} className="py-3" />
-              ) : (
-                <div className="space-y-2">
-                  {items.map((d) => (
-                    <DiscussionCard
-                      key={d.id}
-                      discussion={d}
-                      lookupParticipant={lookupParticipant}
-                      onOpen={onOpenDiscussion}
-                      isNew={isNewDiscussion(d.id)}
-                    />
-                  ))}
-                </div>
+              {!isCollapsed && (
+                items.length === 0 ? (
+                  <EmptyState icon={WINDOW_ICON[w]} title={T.empty[w]} className="py-3" />
+                ) : (
+                  <div className="space-y-2">
+                    {items.map((d) => (
+                      <DiscussionCard
+                        key={d.id}
+                        discussion={d}
+                        lookupParticipant={lookupParticipant}
+                        onOpen={onOpenDiscussion}
+                        isNew={isNewDiscussion(d.id)}
+                      />
+                    ))}
+                  </div>
+                )
               )}
             </section>
           );
