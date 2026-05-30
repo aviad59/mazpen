@@ -63,12 +63,22 @@ export function byCreatedDesc<T extends { createdAt: string }>(a: T, b: T) {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
-/** Get the ISO Sunday date string for a given week offset from today (0 = this week). */
+/** Get the ISO Sunday date string for a given week offset from today (0 = this week).
+ *  Uses local date parts to avoid UTC-offset shifting the date (e.g. Israel UTC+3). */
 export function getWeekStart(offsetWeeks: number): string {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** On Friday (5) or Saturday (6) the upcoming work week is already treated as
+ *  "this week", so all section offsets shift forward by 1. */
+function fridaySatAdj(): number {
+  const dow = new Date().getDay();
+  return dow === 5 || dow === 6 ? 1 : 0;
 }
 
 /** Format a date as D.M (e.g. 24.5) */
@@ -76,21 +86,23 @@ function fmt(d: Date): string {
   return `${d.getDate()}.${d.getMonth() + 1}`;
 }
 
-/** Return the date range string (Sunday–Thursday) for a dashboard section. */
+/** Return the date range string (Sunday–Thursday) for a dashboard section.
+ *  Accounts for Fri/Sat pre-week shift so headers always match section contents. */
 export function sectionDateRange(section: DashboardSection): string | null {
+  const adj = fridaySatAdj();
   if (section === "this_week" || section === "next_week") {
-    const offset = section === "this_week" ? 0 : 1;
-    const sun = new Date(getWeekStart(offset) + "T00:00:00");
+    const base = section === "this_week" ? 0 : 1;
+    const sun = new Date(getWeekStart(base + adj) + "T00:00:00");
     const thu = new Date(sun); thu.setDate(sun.getDate() + 4);
     return `${fmt(sun)}–${fmt(thu)}`;
   }
   if (section === "later") {
-    const sun = new Date(getWeekStart(2) + "T00:00:00");
-    const thu = new Date(getWeekStart(3) + "T00:00:00"); thu.setDate(thu.getDate() + 4);
+    const sun = new Date(getWeekStart(2 + adj) + "T00:00:00");
+    const thu = new Date(getWeekStart(3 + adj) + "T00:00:00"); thu.setDate(thu.getDate() + 4);
     return `${fmt(sun)}–${fmt(thu)}`;
   }
   if (section === "in_a_month") {
-    const sun = new Date(getWeekStart(4) + "T00:00:00");
+    const sun = new Date(getWeekStart(4 + adj) + "T00:00:00");
     return `מ-${fmt(sun)}`;
   }
   return null;
@@ -117,9 +129,12 @@ export function effectiveScheduledSection(
 ): DashboardSection {
   if (!scheduledWeek) return dateWindow === "unspecified" ? "unspecified" : (dateWindow as DashboardSection);
 
-  const now = new Date();
-  const sw = new Date(scheduledWeek);
-  const diffDays = (sw.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  // Parse both dates as local midnight to avoid UTC-offset issues.
+  // On Fri/Sat, the reference advances 1 week so the upcoming work week
+  // already appears as "this_week" before Sunday arrives.
+  const sw = new Date(scheduledWeek + "T00:00:00");
+  const ref = new Date(getWeekStart(fridaySatAdj()) + "T00:00:00");
+  const diffDays = (sw.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24);
 
   if (diffDays <= 0) return "this_week";
   if (diffDays <= 7) return "next_week";
