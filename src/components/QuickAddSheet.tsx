@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ChevronDown } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Button } from "./ui/Button";
@@ -8,6 +8,7 @@ import { Select } from "./ui/Select";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
+import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { T, RECURRENCE_LABEL, isPEDiscussion } from "@/lib/he";
 import type { DateWindow, Discussion, Recurrence } from "@/types";
 
@@ -30,6 +31,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [recurrence, setRecurrence] = React.useState<Recurrence>("none");
   const [notes, setNotes] = React.useState("");
   const [durationMinutes, setDurationMinutes] = React.useState<string>("");
+  const [drivingTimePreference, setDrivingTimePreference] = React.useState(false);
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const nameRef = React.useRef<HTMLInputElement>(null);
 
@@ -44,6 +47,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setRecurrence(template?.recurrence ?? "none");
     setNotes(template?.notes ?? "");
     setDurationMinutes(template?.durationMinutes?.toString() ?? "");
+    setDrivingTimePreference(template?.drivingTimePreference ?? false);
+    setAdvancedOpen(false);
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
 
@@ -86,6 +91,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         recurrence,
         durationMinutes: parsedDuration && !isNaN(parsedDuration) ? parsedDuration : undefined,
         notes: notes.trim() || undefined,
+        drivingTimePreference,
       });
       onCreated?.(created);
       onClose();
@@ -217,6 +223,32 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             placeholder="הקשר / נושא / הערות..."
             rows={3}
           />
+        </div>
+
+        {/* Advanced settings */}
+        <div className="rounded-lg border border-border">
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors select-none"
+          >
+            הגדרות מתקדמות
+            <ChevronDown size={15} className={advancedOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+          </button>
+          {advancedOpen && (
+            <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+              <Switch
+                checked={drivingTimePreference}
+                onChange={setDrivingTimePreference}
+                label={
+                  <span className="flex items-center gap-1.5">
+                    עדיפות לזמן נהיגה
+                    <DrivingTimeIcon size={18} className="text-muted-foreground" />
+                  </span>
+                }
+              />
+            </div>
+          )}
         </div>
       </form>
     </Sheet>

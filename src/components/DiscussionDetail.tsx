@@ -76,6 +76,7 @@ const EMPTY_EDIT: EditState = {
   requiresSubstrate: true,
   recurrence: "none",
   durationMinutes: undefined,
+  drivingTimePreference: false,
 };
 
 export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Props) {
@@ -98,6 +99,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       requiresSubstrate: discussion.requiresSubstrate,
       recurrence: discussion.recurrence,
       durationMinutes: discussion.durationMinutes,
+      drivingTimePreference: discussion.drivingTimePreference ?? false,
     });
     setEditing(false);
     setNote("");
@@ -125,6 +127,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       requiresSubstrate: editIsPE ? false : edit.requiresSubstrate,
       recurrence: edit.recurrence,
       durationMinutes: edit.durationMinutes,
+      drivingTimePreference: edit.drivingTimePreference,
     };
     if (edit.dateWindow !== d.dateWindow) {
       await setDateWindow(d.id, edit.dateWindow);

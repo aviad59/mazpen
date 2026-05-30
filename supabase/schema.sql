@@ -54,6 +54,8 @@ alter table public.discussions
   add column if not exists duration_minutes integer;
 alter table public.discussions
   alter column leader_id drop not null;
+alter table public.discussions
+  add column if not exists driving_time_preference boolean not null default false;
 
 create index if not exists discussions_status_idx      on public.discussions (status);
 create index if not exists discussions_date_window_idx on public.discussions (date_window);

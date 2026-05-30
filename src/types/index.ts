@@ -119,6 +119,8 @@ export interface Discussion {
 
   notes?: string;
   summary?: string;
+  /** Prefer scheduling this discussion during driving/commute time. */
+  drivingTimePreference?: boolean;
   history: HistoryEvent[];
   createdAt: string;
   updatedAt: string;

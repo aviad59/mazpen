@@ -1,4 +1,5 @@
 import { Building2, CalendarRange, FileStack } from "lucide-react";
+import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
@@ -140,6 +141,11 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         )}
         {d.recurrence !== "none" && (
           <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>
+        )}
+        {d.drivingTimePreference && (
+          <Badge tone="muted" className="gap-1 px-1.5">
+            <DrivingTimeIcon size={16} />
+          </Badge>
         )}
       </div>
     </Card>

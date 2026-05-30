@@ -1,7 +1,9 @@
 import * as React from "react";
+import { ChevronDown } from "lucide-react";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Switch } from "./ui/Switch";
+import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
@@ -18,6 +20,7 @@ export interface EditState {
   requiresSubstrate: boolean;
   recurrence: Recurrence;
   durationMinutes?: number;
+  drivingTimePreference: boolean;
 }
 
 interface Props {
@@ -28,6 +31,7 @@ interface Props {
 
 export function DiscussionEditForm({ discussion, state, onChange }: Props) {
   const { participants, groups, addParticipant, changeStatus } = useStore();
+  const [advancedOpen, setAdvancedOpen] = React.useState(false);
 
   const isPE = isPEDiscussion(state.name);
 
@@ -143,6 +147,32 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
             label: RECURRENCE_LABEL[r],
           }))}
         />
+      </div>
+
+      {/* Advanced settings */}
+      <div className="rounded-lg border border-border">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors select-none"
+        >
+          הגדרות מתקדמות
+          <ChevronDown size={15} className={advancedOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+        </button>
+        {advancedOpen && (
+          <div className="px-3 pb-3 space-y-3 border-t border-border pt-3">
+            <Switch
+              checked={state.drivingTimePreference}
+              onChange={(v) => onChange({ drivingTimePreference: v })}
+              label={
+                <span className="flex items-center gap-1.5">
+                  עדיפות לזמן נהיגה
+                  <DrivingTimeIcon size={18} className="text-muted-foreground" />
+                </span>
+              }
+            />
+          </div>
+        )}
       </div>
 
       <div>

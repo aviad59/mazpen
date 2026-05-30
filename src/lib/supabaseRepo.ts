@@ -33,6 +33,7 @@ interface DiscussionRow {
   duration_minutes: number | null;
   notes: string | null;
   summary: string | null;
+  driving_time_preference: boolean | null;
   history: HistoryEvent[];
   created_at: string;
   updated_at: string;
@@ -79,6 +80,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     durationMinutes: r.duration_minutes ?? undefined,
     notes: r.notes ?? undefined,
     summary: r.summary ?? undefined,
+    drivingTimePreference: r.driving_time_preference ?? false,
     history: r.history ?? [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -101,6 +103,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     duration_minutes: d.durationMinutes ?? null,
     notes: d.notes ?? null,
     summary: d.summary ?? null,
+    driving_time_preference: d.drivingTimePreference ?? false,
     history: d.history,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
@@ -149,7 +152,7 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
       const { data, error } = await client
         .from("discussions")
         .select(
-          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,duration_minutes,notes,summary,history,created_at,updated_at"
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
         )
         .limit(5000);
       if (error) throw error;

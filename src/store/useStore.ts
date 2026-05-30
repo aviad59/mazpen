@@ -175,6 +175,7 @@ export type CreateDiscussionInput = {
   recurrence?: Discussion["recurrence"];
   durationMinutes?: number;
   notes?: string;
+  drivingTimePreference?: boolean;
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
@@ -196,6 +197,7 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     recurrence: input.recurrence ?? "none",
     durationMinutes: input.durationMinutes,
     notes: input.notes,
+    drivingTimePreference: input.drivingTimePreference ?? false,
     history: [{ id: uid("h-"), kind: "created", at: nowIso, text: "הדיון נוצר", by: currentUserName || undefined }],
     createdAt: nowIso,
     updatedAt: nowIso,
