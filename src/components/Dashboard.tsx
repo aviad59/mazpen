@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CalendarRange, HelpCircle, Clock } from "lucide-react";
+import { CalendarRange, HelpCircle, Clock, ChevronDown } from "lucide-react";
 import { DiscussionCard } from "./DiscussionCard";
 import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
@@ -21,19 +21,33 @@ interface PhaseBoxProps {
   headerClass: string;
   borderClass: string;
   children: React.ReactNode;
+  collapsed: boolean;
+  onToggle: () => void;
 }
 
-function PhaseBox({ label, count, headerClass, borderClass, children }: PhaseBoxProps) {
+function PhaseBox({ label, count, headerClass, borderClass, children, collapsed, onToggle }: PhaseBoxProps) {
   if (count === 0) return null;
   return (
     <div className={cn("rounded-xl border-2 overflow-hidden", borderClass)}>
-      <div className={cn("flex items-center justify-between px-4 py-2", headerClass)}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn("w-full flex items-center justify-between px-4 py-2 select-none", headerClass)}
+      >
         <span className="text-sm font-bold tracking-wide">{label}</span>
-        <span className="text-xs font-semibold opacity-70 bg-white/20 rounded-full px-2 py-0.5">{count}</span>
-      </div>
-      <div className="p-3 space-y-1 bg-background">
-        {children}
-      </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold opacity-70 bg-white/20 rounded-full px-2 py-0.5">{count}</span>
+          <ChevronDown
+            size={15}
+            className={cn("opacity-80 transition-transform duration-200", collapsed && "-rotate-90")}
+          />
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="p-3 space-y-1 bg-background">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -102,8 +116,11 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   const { discussions, lookupParticipant, loaded, isNewDiscussion } = useStore();
   const buckets = React.useMemo(() => bucketize(discussions), [discussions]);
   const [collapsed, setCollapsed] = React.useState<Partial<Record<DashboardSection, boolean>>>({});
+  const [phaseCollapsed, setPhaseCollapsed] = React.useState<Record<string, boolean>>({});
   const toggleSection = (w: DashboardSection) =>
     setCollapsed((prev) => ({ ...prev, [w]: !prev[w] }));
+  const togglePhase = (key: string) =>
+    setPhaseCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
 
   if (!loaded) {
     return (
@@ -137,6 +154,8 @@ export function Dashboard({ onOpenDiscussion }: Props) {
         count={planningCount}
         headerClass="bg-blue-500 text-white"
         borderClass="border-blue-200 dark:border-blue-800"
+        collapsed={!!phaseCollapsed["planning"]}
+        onToggle={() => togglePhase("planning")}
       >
         {PLANNING_WINDOWS.map((w) => {
           const items = buckets.planning[w];
@@ -179,6 +198,8 @@ export function Dashboard({ onOpenDiscussion }: Props) {
         count={buckets.coordinated.length}
         headerClass="bg-teal-500 text-white"
         borderClass="border-teal-200 dark:border-teal-800"
+        collapsed={!!phaseCollapsed["coordinated"]}
+        onToggle={() => togglePhase("coordinated")}
       >
         <div className="space-y-2 pt-1">
           {buckets.coordinated.map((d) => (
@@ -199,6 +220,8 @@ export function Dashboard({ onOpenDiscussion }: Props) {
         count={buckets.summary.length}
         headerClass="bg-amber-500 text-white"
         borderClass="border-amber-200 dark:border-amber-800"
+        collapsed={!!phaseCollapsed["summary"]}
+        onToggle={() => togglePhase("summary")}
       >
         <div className="space-y-2 pt-1">
           {buckets.summary.map((d) => (
