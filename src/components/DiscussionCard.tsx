@@ -14,6 +14,7 @@ interface Props {
   onOpen: (id: string) => void;
   compact?: boolean;
   isNew?: boolean;
+  hideWindow?: boolean;
 }
 
 function externalUnits(participants: Participant[]): string[] {
@@ -24,7 +25,7 @@ function externalUnits(participants: Participant[]): string[] {
   return Array.from(seen);
 }
 
-export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact, isNew }: Props) {
+export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact, isNew, hideWindow }: Props) {
   const thisWeek = d.dateWindow === "this_week";
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
@@ -83,15 +84,17 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       </div>
 
       {/* Date window row */}
-      <div
-        className={cn(
-          "mt-2 flex items-center gap-1.5 text-sm font-medium",
-          thisWeek ? "text-accent" : "text-foreground/70"
-        )}
-      >
-        <CalendarRange size={14} />
-        <span>{WINDOW_LABEL[d.dateWindow]}</span>
-      </div>
+      {!hideWindow && (
+        <div
+          className={cn(
+            "mt-2 flex items-center gap-1.5 text-sm font-medium",
+            thisWeek ? "text-accent" : "text-foreground/70"
+          )}
+        >
+          <CalendarRange size={14} />
+          <span>{WINDOW_LABEL[d.dateWindow]}</span>
+        </div>
+      )}
 
       {/* External units callout */}
       {ext.length > 0 && (

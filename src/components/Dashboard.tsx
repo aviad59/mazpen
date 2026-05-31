@@ -209,6 +209,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
               lookupParticipant={lookupParticipant}
               onOpen={onOpenDiscussion}
               isNew={isNewDiscussion(d.id)}
+              hideWindow
             />
           ))}
         </div>
