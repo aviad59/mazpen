@@ -150,6 +150,9 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
             <DrivingTimeIcon size={16} />
           </Badge>
         )}
+        {d.requiresBashiReview && (
+          <Badge tone="warning">דורש מעבר של בשי</Badge>
+        )}
       </div>
     </Card>
   );

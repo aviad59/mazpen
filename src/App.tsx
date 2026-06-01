@@ -11,6 +11,7 @@ import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { IOSInstallBanner } from "./components/IOSInstallBanner";
 import { EnableNotificationsBanner } from "./components/EnableNotificationsBanner";
+import { BashiReviewAlert } from "./components/BashiReviewAlert";
 import { useStore, setCurrentUserName } from "./store/useStore";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
@@ -36,8 +37,10 @@ function getAndClearSharedId(): string | null {
 export default function App() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const { discussions, error, clearAll, reload } = useStore();
+  const isBashiUser = user?.user_metadata?.full_name === "רותם בשי";
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [bashiAlertOpen, setBashiAlertOpen] = React.useState(true);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(() => getAndClearSharedId());
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
@@ -47,6 +50,14 @@ export default function App() {
     const name = user?.user_metadata?.full_name ?? user?.email ?? "";
     setCurrentUserName(name);
   }, [user]);
+
+  const bashiPending = discussions.filter((d) => d.requiresBashiReview);
+
+  // Re-open alert when new flagged discussions appear
+  React.useEffect(() => {
+    if (isBashiUser && bashiPending.length > 0) setBashiAlertOpen(true);
+    if (bashiPending.length === 0) setBashiAlertOpen(false);
+  }, [isBashiUser, bashiPending.length]);
 
   const { state: pushState, subscribe: subscribePush } = usePushNotifications(user?.id);
 
@@ -153,7 +164,16 @@ export default function App() {
         discussion={openDiscussion}
         onClose={() => setOpenId(null)}
         onDuplicate={handleDuplicate}
+        isBashiUser={isBashiUser}
       />
+
+      {isBashiUser && bashiAlertOpen && (
+        <BashiReviewAlert
+          discussions={bashiPending}
+          onClose={() => setBashiAlertOpen(false)}
+          onOpen={setOpenId}
+        />
+      )}
 
       <ParticipantsSheet
         open={participantsOpen}

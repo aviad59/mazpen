@@ -21,15 +21,17 @@ export interface EditState {
   recurrence: Recurrence;
   durationMinutes?: number;
   drivingTimePreference: boolean;
+  requiresBashiReview: boolean;
 }
 
 interface Props {
   discussion: Discussion;
   state: EditState;
   onChange: (patch: Partial<EditState>) => void;
+  isBashiUser?: boolean;
 }
 
-export function DiscussionEditForm({ discussion, state, onChange }: Props) {
+export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }: Props) {
   const { participants, groups, addParticipant, changeStatus } = useStore();
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
 
@@ -168,6 +170,19 @@ export function DiscussionEditForm({ discussion, state, onChange }: Props) {
                 <span className="flex items-center gap-1.5">
                   עדיפות לזמן נהיגה
                   <DrivingTimeIcon size={18} className="text-muted-foreground" />
+                </span>
+              }
+            />
+            <Switch
+              checked={isBashiUser ? false : state.requiresBashiReview}
+              onChange={(v) => onChange({ requiresBashiReview: v })}
+              disabled={isBashiUser}
+              label={
+                <span>
+                  דורש מעבר של בשי
+                  {isBashiUser && (
+                    <span className="text-xs text-muted-foreground mr-1">(יתאפס בשמירה)</span>
+                  )}
                 </span>
               }
             />

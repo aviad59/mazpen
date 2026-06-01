@@ -35,6 +35,7 @@ interface Props {
   discussion: Discussion | null;
   onClose: () => void;
   onDuplicate?: (template: Discussion) => void;
+  isBashiUser?: boolean;
 }
 
 /** Dynamic next actions based on status + requiresSummary flag. */
@@ -77,9 +78,10 @@ const EMPTY_EDIT: EditState = {
   recurrence: "none",
   durationMinutes: undefined,
   drivingTimePreference: false,
+  requiresBashiReview: false,
 };
 
-export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Props) {
+export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBashiUser }: Props) {
   const { lookupParticipant, updateDiscussion, changeStatus, setDateWindow, removeDiscussion, addNote } = useStore();
 
   const [editing, setEditing] = React.useState(false);
@@ -100,6 +102,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       recurrence: discussion.recurrence,
       durationMinutes: discussion.durationMinutes,
       drivingTimePreference: discussion.drivingTimePreference ?? false,
+      requiresBashiReview: discussion.requiresBashiReview ?? false,
     });
     setEditing(false);
     setNote("");
@@ -128,6 +131,8 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
       recurrence: edit.recurrence,
       durationMinutes: edit.durationMinutes,
       drivingTimePreference: edit.drivingTimePreference,
+      // Bashi auto-clears the flag whenever they save any edit
+      requiresBashiReview: isBashiUser ? false : edit.requiresBashiReview,
     };
     if (edit.dateWindow !== d.dateWindow) {
       await setDateWindow(d.id, edit.dateWindow);
@@ -262,14 +267,20 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
                   key={a.to}
                   size="sm"
                   variant={a.to === "distributed" || a.to === "occurred" ? "primary" : "outline"}
-                  onClick={() => changeStatus(d.id, a.to)}
+                  onClick={() => {
+                    changeStatus(d.id, a.to);
+                    if (isBashiUser && d.requiresBashiReview) updateDiscussion(d.id, { requiresBashiReview: false });
+                  }}
                 >
                   <CheckCircle2 size={14} />{a.label}
                   {a.to !== "distributed" && a.to !== "occurred" && <ChevronLeft size={14} />}
                 </Button>
               ))}
               {prevStatus && (
-                <Button size="sm" variant="ghost" onClick={() => changeStatus(d.id, prevStatus)}>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  changeStatus(d.id, prevStatus);
+                  if (isBashiUser && d.requiresBashiReview) updateDiscussion(d.id, { requiresBashiReview: false });
+                }}>
                   <Undo2 size={14} />חזרה ל{STATUS_LABEL[prevStatus]}
                 </Button>
               )}
@@ -336,7 +347,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate }: Pro
         )}
 
         {editing && (
-          <DiscussionEditForm discussion={d} state={edit} onChange={(patch) => setEdit((s) => ({ ...s, ...patch }))} />
+          <DiscussionEditForm discussion={d} state={edit} onChange={(patch) => setEdit((s) => ({ ...s, ...patch }))} isBashiUser={isBashiUser} />
         )}
       </div>
     </Sheet>

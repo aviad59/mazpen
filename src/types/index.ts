@@ -117,6 +117,8 @@ export interface Discussion {
   /** Duration of the discussion in minutes (optional). */
   durationMinutes?: number;
 
+  /** Requires review/handoff by בשי before it can proceed. Auto-clears when בשי edits the discussion. */
+  requiresBashiReview?: boolean;
   notes?: string;
   summary?: string;
   /** Prefer scheduling this discussion during driving/commute time. */

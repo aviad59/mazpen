@@ -32,6 +32,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [notes, setNotes] = React.useState("");
   const [durationMinutes, setDurationMinutes] = React.useState<string>("");
   const [drivingTimePreference, setDrivingTimePreference] = React.useState(false);
+  const [requiresBashiReview, setRequiresBashiReview] = React.useState(false);
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const nameRef = React.useRef<HTMLInputElement>(null);
@@ -48,6 +49,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setNotes(template?.notes ?? "");
     setDurationMinutes(template?.durationMinutes?.toString() ?? "");
     setDrivingTimePreference(template?.drivingTimePreference ?? false);
+    setRequiresBashiReview(template?.requiresBashiReview ?? false);
     setAdvancedOpen(false);
     setTimeout(() => nameRef.current?.focus(), 80);
   }, [open, template]);
@@ -92,6 +94,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         durationMinutes: parsedDuration && !isNaN(parsedDuration) ? parsedDuration : undefined,
         notes: notes.trim() || undefined,
         drivingTimePreference,
+        requiresBashiReview,
       });
       onCreated?.(created);
       onClose();
@@ -246,6 +249,11 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
                     <DrivingTimeIcon size={18} className="text-muted-foreground" />
                   </span>
                 }
+              />
+              <Switch
+                checked={requiresBashiReview}
+                onChange={setRequiresBashiReview}
+                label="דורש מעבר של בשי"
               />
             </div>
           )}

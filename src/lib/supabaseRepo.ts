@@ -29,6 +29,7 @@ interface DiscussionRow {
   leader_id: string | null;
   requires_summary: boolean;
   requires_substrate: boolean;
+  requires_bashi_review: boolean | null;
   recurrence: Recurrence;
   duration_minutes: number | null;
   notes: string | null;
@@ -76,6 +77,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     leaderId: r.leader_id ?? undefined,
     requiresSummary: r.requires_summary,
     requiresSubstrate: r.requires_substrate ?? true,
+    requiresBashiReview: r.requires_bashi_review ?? false,
     recurrence: r.recurrence ?? "none",
     durationMinutes: r.duration_minutes ?? undefined,
     notes: r.notes ?? undefined,
@@ -99,6 +101,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     leader_id: d.leaderId ?? null,
     requires_summary: d.requiresSummary,
     requires_substrate: d.requiresSubstrate,
+    requires_bashi_review: d.requiresBashiReview ?? false,
     recurrence: d.recurrence,
     duration_minutes: d.durationMinutes ?? null,
     notes: d.notes ?? null,
@@ -152,7 +155,7 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
       const { data, error } = await client
         .from("discussions")
         .select(
-          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
         )
         .limit(5000);
       if (error) throw error;
