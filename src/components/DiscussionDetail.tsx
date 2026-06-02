@@ -310,6 +310,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
                           <span className="truncate">{p.name}</span>
                           {p.id === d.leaderId && <Badge tone="accent">מוביל</Badge>}
                           {isExternal && <Badge tone="warning">חיצוני</Badge>}
+                          {p.optional && <Badge tone="muted">רשות</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{[p.role, p.unit].filter(Boolean).join(" · ")}</div>
                       </div>
