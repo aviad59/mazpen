@@ -262,6 +262,15 @@ async function addParticipant(p: Omit<Participant, "id">): Promise<Participant> 
   const full: Participant = { ...p, id: uid("p-") };
   await dbPutParticipant(full);
   setState((s) => ({ ...s, participants: [...s.participants, full] }));
+
+  // Notify other users (fire-and-forget)
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) return;
+    supabase.functions.invoke("notify-participant", {
+      body: { participantName: full.name, creatorUserId: user.id },
+    }).catch(() => { /* non-critical */ });
+  });
+
   return full;
 }
 
