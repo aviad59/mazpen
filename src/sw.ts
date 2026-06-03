@@ -28,8 +28,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title ?? "מצפן";
   const options: NotificationOptions = {
     body: payload.body ?? "",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/icons/icon-192.jpg",
+    badge: "/icons/icon-192.jpg",
     dir: "rtl",
     lang: "he",
     data: { url: payload.url ?? "/" },

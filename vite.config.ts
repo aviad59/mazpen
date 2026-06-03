@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "icons/*.png"],
+      includeAssets: ["favicon.ico", "icons/*.jpg"],
       manifest: {
         name: "מצפן — מעקב דיונים",
         short_name: "מצפן",
@@ -21,12 +21,12 @@ export default defineConfig({
         dir: "rtl",
         start_url: "/",
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+          { src: "/icons/icon-192.jpg", sizes: "192x192", type: "image/jpeg" },
+          { src: "/icons/icon-512.jpg", sizes: "512x512", type: "image/jpeg", purpose: "any maskable" },
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,jpg,svg,woff2}"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
