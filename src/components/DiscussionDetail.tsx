@@ -161,7 +161,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
     const url = `${window.location.origin}${window.location.pathname}?id=${d.id}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: d.name, text: d.name, url });
+        await navigator.share({ title: d.name, text: `${d.name}\n${url}` });
         return;
       } catch {
         // User cancelled or share failed — fall through to clipboard
