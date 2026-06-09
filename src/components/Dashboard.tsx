@@ -181,7 +181,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
     <>
       {/* ── Desktop Kanban (md+) ─────────────────────────────────────── */}
       <div
-        className="hidden md:flex gap-3 px-4 pb-4 pt-3"
+        className="hidden lg:flex gap-3 px-4 pb-4 pt-3"
         style={{ height: "calc(100dvh - 130px)" }}
       >
         {/* Column 1: בתכנון */}
@@ -273,7 +273,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
       </div>
 
       {/* ── Mobile list (below md) ──────────────────────────────────── */}
-      <div className="md:hidden space-y-4 px-3 pb-24 pt-3">
+      <div className="lg:hidden space-y-4 px-3 pb-24 pt-3">
 
         {/* Phase 1: Planning (חדש) */}
         <PhaseBox

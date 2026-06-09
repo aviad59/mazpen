@@ -1,10 +1,8 @@
 import * as React from "react";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Switch } from "./ui/Switch";
-import { Button } from "./ui/Button";
-import { Chip } from "./ui/Chip";
 import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
@@ -18,6 +16,7 @@ export interface EditState {
   dateWindow: DateWindow;
   participantIds: string[];
   extraParticipants: string[];
+  optionalParticipantIds: string[];
   leaderId: string;
   requiresSummary: boolean;
   requiresSubstrate: boolean;
@@ -37,29 +36,27 @@ interface Props {
 export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }: Props) {
   const { participants, groups, addParticipant, changeStatus } = useStore();
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
-  const [tempName, setTempName] = React.useState("");
 
   const isPE = isPEDiscussion(state.name);
 
-  // Auto-select leader when participants change (skip when PE)
+  // Auto-select leader when participants or optionals change — exclude per-discussion optionals
   React.useEffect(() => {
     if (isPE || state.participantIds.length === 0) return;
     const eligibleIds = state.participantIds.filter(
-      (id) => !participants.find((p) => p.id === id)?.optional
+      (id) => !state.optionalParticipantIds.includes(id)
     );
     if (!state.leaderId || !eligibleIds.includes(state.leaderId)) {
       onChange({ leaderId: eligibleIds[0] ?? state.participantIds[0] });
     }
-  }, [state.participantIds, state.leaderId, onChange]);
+  }, [state.participantIds, state.optionalParticipantIds, state.leaderId, onChange]);
 
-  // Derive effective values — PE overrides at render time, no async effects needed
   const effectiveLeaderId = isPE ? "" : (state.leaderId ?? "");
   const effectiveRequiresSummary = isPE ? false : state.requiresSummary;
   const effectiveRequiresSubstrate = isPE ? false : state.requiresSubstrate;
 
   const leaderOptions = state.participantIds
     .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p && !p.optional)
+    .filter((p): p is NonNullable<typeof p> => !!p && !state.optionalParticipantIds.includes(p.id))
     .map((p) => ({ value: p.id, label: p.name }));
 
   return (
@@ -83,55 +80,13 @@ export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }:
           onChange={(ids) => onChange({ participantIds: ids })}
           onCreate={addParticipant}
           nameHint={state.name}
+          extraValue={state.extraParticipants}
+          onExtraChange={(names) => onChange({ extraParticipants: names })}
+          optionalIds={state.optionalParticipantIds}
+          onOptionalChange={(ids) => onChange({ optionalParticipantIds: ids })}
         />
-        {state.participantIds.length === 0 && (
+        {state.participantIds.length === 0 && state.extraParticipants.length === 0 && (
           <p className="text-[11px] text-destructive mt-1">דיון חייב לכלול לפחות משתתף אחד.</p>
-        )}
-      </div>
-
-      {/* Extra (temporary) participants */}
-      <div>
-        <Label>משתתפים זמניים</Label>
-        <p className="text-[11px] text-muted-foreground mb-1.5">שמות שלא נשמרים ברשימת המשתתפים</p>
-        <div className="flex gap-2">
-          <Input
-            value={tempName}
-            onChange={(e) => setTempName(e.target.value)}
-            placeholder="שם המשתתף..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                const n = tempName.trim();
-                if (n) { onChange({ extraParticipants: [...state.extraParticipants, n] }); setTempName(""); }
-              }
-            }}
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!tempName.trim()}
-            onClick={() => {
-              const n = tempName.trim();
-              if (n) { onChange({ extraParticipants: [...state.extraParticipants, n] }); setTempName(""); }
-            }}
-          >
-            <Plus size={14} />
-          </Button>
-        </div>
-        {state.extraParticipants.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {state.extraParticipants.map((name, i) => (
-              <Chip
-                key={i}
-                size="sm"
-                active
-                onRemove={() => onChange({ extraParticipants: state.extraParticipants.filter((_, j) => j !== i) })}
-              >
-                {name}
-              </Chip>
-            ))}
-          </div>
         )}
       </div>
 

@@ -134,3 +134,9 @@ create policy "own push subscriptions"
 
 -- Edge function (service_role) can read all subscriptions to send notifications
 -- (service_role bypasses RLS by default — no extra policy needed)
+
+-- ------------------------------------------------------------
+-- Migrations
+-- ------------------------------------------------------------
+alter table public.discussions add column if not exists extra_participants text[];
+alter table public.discussions add column if not exists optional_participant_ids text[];

@@ -73,6 +73,7 @@ const EMPTY_EDIT: EditState = {
   dateWindow: "unspecified",
   participantIds: [],
   extraParticipants: [],
+  optionalParticipantIds: [],
   leaderId: "",
   requiresSummary: true,
   requiresSubstrate: true,
@@ -98,6 +99,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
       extraParticipants: discussion.extraParticipants ?? [],
+      optionalParticipantIds: discussion.optionalParticipantIds ?? [],
       leaderId: discussion.leaderId ?? "",
       requiresSummary: discussion.requiresSummary,
       requiresSubstrate: discussion.requiresSubstrate,
@@ -128,6 +130,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       notes: edit.notes.trim() || undefined,
       participantIds: edit.participantIds,
       extraParticipants: edit.extraParticipants.length ? edit.extraParticipants : undefined,
+      optionalParticipantIds: edit.optionalParticipantIds.length ? edit.optionalParticipantIds : undefined,
       leaderId: editIsPE ? undefined : edit.leaderId,
       requiresSummary: editIsPE ? false : edit.requiresSummary,
       requiresSubstrate: editIsPE ? false : edit.requiresSubstrate,
@@ -313,7 +316,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
                           <span className="truncate">{p.name}</span>
                           {p.id === d.leaderId && <Badge tone="accent">מוביל</Badge>}
                           {isExternal && <Badge tone="warning">חיצוני</Badge>}
-                          {p.optional && <Badge tone="muted">רשות</Badge>}
+                          {(d.optionalParticipantIds?.includes(p.id) ?? p.optional) && <Badge tone="muted">רשות</Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{[p.role, p.unit].filter(Boolean).join(" · ")}</div>
                       </div>

@@ -1,11 +1,10 @@
 import * as React from "react";
-import { Sparkles, ChevronDown, Plus } from "lucide-react";
+import { Sparkles, ChevronDown } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
 import { Select } from "./ui/Select";
-import { Chip } from "./ui/Chip";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
@@ -26,14 +25,14 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [name, setName] = React.useState("");
   const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
   const [participantIds, setParticipantIds] = React.useState<string[]>([]);
+  const [extraParticipants, setExtraParticipants] = React.useState<string[]>([]);
+  const [optionalParticipantIds, setOptionalParticipantIds] = React.useState<string[]>([]);
   const [leaderId, setLeaderId] = React.useState<string>("");
   const [requiresSummary, setRequiresSummary] = React.useState(true);
   const [requiresSubstrate, setRequiresSubstrate] = React.useState(true);
   const [recurrence, setRecurrence] = React.useState<Recurrence>("none");
   const [notes, setNotes] = React.useState("");
   const [durationMinutes, setDurationMinutes] = React.useState<string>("");
-  const [extraParticipants, setExtraParticipants] = React.useState<string[]>([]);
-  const [tempName, setTempName] = React.useState("");
   const [drivingTimePreference, setDrivingTimePreference] = React.useState(false);
   const [requiresBashiReview, setRequiresBashiReview] = React.useState(false);
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
@@ -45,14 +44,14 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setName(template?.name ?? "");
     setDateWindow(template?.dateWindow ?? "this_week");
     setParticipantIds(template?.participantIds ?? []);
+    setExtraParticipants(template?.extraParticipants ?? []);
+    setOptionalParticipantIds(template?.optionalParticipantIds ?? []);
     setLeaderId(template?.leaderId ?? "");
     setRequiresSummary(template?.requiresSummary ?? true);
     setRequiresSubstrate(template?.requiresSubstrate ?? true);
     setRecurrence(template?.recurrence ?? "none");
     setNotes(template?.notes ?? "");
     setDurationMinutes(template?.durationMinutes?.toString() ?? "");
-    setExtraParticipants(template?.extraParticipants ?? []);
-    setTempName("");
     setDrivingTimePreference(template?.drivingTimePreference ?? false);
     setRequiresBashiReview(template?.requiresBashiReview ?? false);
     setAdvancedOpen(false);
@@ -61,23 +60,20 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   const isPE = isPEDiscussion(name);
 
-  // Auto-select leader when participants change (skip when PE)
+  // Auto-select leader when participants change — exclude per-discussion optional
   React.useEffect(() => {
     if (isPE || participantIds.length === 0) return;
-    const eligibleIds = participantIds.filter(
-      (id) => !participants.find((p) => p.id === id)?.optional
-    );
+    const eligibleIds = participantIds.filter((id) => !optionalParticipantIds.includes(id));
     if (!leaderId || !eligibleIds.includes(leaderId)) {
       setLeaderId(eligibleIds[0] ?? participantIds[0]);
     }
-  }, [isPE, participantIds, leaderId, participants]);
+  }, [isPE, participantIds, optionalParticipantIds, leaderId]);
 
-  // Derive effective submission values — PE overrides state directly at render time
   const effectiveLeaderId = isPE ? "" : leaderId;
   const effectiveRequiresSummary = isPE ? false : requiresSummary;
   const effectiveRequiresSubstrate = isPE ? false : requiresSubstrate;
 
-  const hasParticipants = participantIds.length > 0;
+  const hasParticipants = participantIds.length > 0 || extraParticipants.length > 0;
   const hasLeader = !!effectiveLeaderId && participantIds.includes(effectiveLeaderId);
   const canSubmit = !!name.trim() && hasParticipants && (isPE || hasLeader) && !submitting;
 
@@ -93,6 +89,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         dateWindow,
         participantIds,
         extraParticipants: extraParticipants.length ? extraParticipants : undefined,
+        optionalParticipantIds: optionalParticipantIds.length ? optionalParticipantIds : undefined,
         leaderId: effectiveLeaderId || undefined,
         requiresSummary: effectiveRequiresSummary,
         requiresSubstrate: effectiveRequiresSubstrate,
@@ -111,7 +108,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   const leaderOptions = participantIds
     .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p && !p.optional)
+    .filter((p): p is NonNullable<typeof p> => !!p && !optionalParticipantIds.includes(p.id))
     .map((p) => ({ value: p.id, label: p.name }));
 
   return (
@@ -162,61 +159,19 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             onChange={setParticipantIds}
             onCreate={addParticipant}
             nameHint={name}
+            extraValue={extraParticipants}
+            onExtraChange={setExtraParticipants}
+            optionalIds={optionalParticipantIds}
+            onOptionalChange={setOptionalParticipantIds}
           />
           {!hasParticipants && (
             <p className="text-[11px] text-muted-foreground mt-1">
-              חובה להוסיף לפחות משתתף אחד. הראשון יהיה המוביל כברירת מחדל.
+              חובה להוסיף לפחות משתתף אחד.
             </p>
           )}
         </div>
 
-        {/* Extra (temporary) participants */}
-        <div>
-          <Label>משתתפים זמניים</Label>
-          <p className="text-[11px] text-muted-foreground mb-1.5">שמות שלא נשמרים ברשימת המשתתפים</p>
-          <div className="flex gap-2">
-            <Input
-              value={tempName}
-              onChange={(e) => setTempName(e.target.value)}
-              placeholder="שם המשתתף..."
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const n = tempName.trim();
-                  if (n) { setExtraParticipants((prev) => [...prev, n]); setTempName(""); }
-                }
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!tempName.trim()}
-              onClick={() => {
-                const n = tempName.trim();
-                if (n) { setExtraParticipants((prev) => [...prev, n]); setTempName(""); }
-              }}
-            >
-              <Plus size={14} />
-            </Button>
-          </div>
-          {extraParticipants.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {extraParticipants.map((name, i) => (
-                <Chip
-                  key={i}
-                  size="sm"
-                  active
-                  onRemove={() => setExtraParticipants((prev) => prev.filter((_, j) => j !== i))}
-                >
-                  {name}
-                </Chip>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {hasParticipants && (
+        {participantIds.length > 0 && (
           <div>
             <Label>{T.leader}{!isPE && " *"}</Label>
             {isPE ? (

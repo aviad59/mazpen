@@ -91,6 +91,8 @@ export interface Discussion {
 
   participantIds: string[];
   extraParticipants?: string[];
+  /** IDs of participants who are optional (רשות) specifically for this discussion. */
+  optionalParticipantIds?: string[];
   /** Leader of the discussion. Absent for פ"ע / פ"א type discussions. */
   leaderId?: string;
 

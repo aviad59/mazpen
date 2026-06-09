@@ -26,6 +26,7 @@ interface DiscussionRow {
   scheduled_week: string | null;
   participant_ids: string[];
   extra_participants: string[] | null;
+  optional_participant_ids: string[] | null;
   leader_id: string | null;
   requires_summary: boolean;
   requires_substrate: boolean;
@@ -74,6 +75,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     scheduledWeek: r.scheduled_week ?? undefined,
     participantIds: r.participant_ids ?? [],
     extraParticipants: r.extra_participants ?? undefined,
+    optionalParticipantIds: r.optional_participant_ids ?? undefined,
     leaderId: r.leader_id ?? undefined,
     requiresSummary: r.requires_summary,
     requiresSubstrate: r.requires_substrate ?? true,
@@ -98,6 +100,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     scheduled_week: d.scheduledWeek ?? null,
     participant_ids: d.participantIds,
     extra_participants: d.extraParticipants ?? null,
+    optional_participant_ids: d.optionalParticipantIds ?? null,
     leader_id: d.leaderId ?? null,
     requires_summary: d.requiresSummary,
     requires_substrate: d.requiresSubstrate,
@@ -155,7 +158,7 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
       const { data, error } = await client
         .from("discussions")
         .select(
-          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,optional_participant_ids,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
         )
         .limit(5000);
       if (error) throw error;

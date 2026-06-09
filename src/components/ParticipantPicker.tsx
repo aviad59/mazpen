@@ -2,7 +2,6 @@ import * as React from "react";
 import { Search, Plus, Check, X } from "lucide-react";
 import { Input } from "./ui/Input";
 import { Avatar } from "./ui/Avatar";
-import { Chip } from "./ui/Chip";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { cn } from "@/lib/utils";
@@ -27,13 +26,14 @@ interface Props {
   nameHint?: string;
   placeholder?: string;
   maxHeight?: number;
+  /** Temporary (ad-hoc) participant names for this discussion only. */
+  extraValue?: string[];
+  onExtraChange?: (names: string[]) => void;
+  /** IDs of selected participants who are optional (רשות) for this discussion. */
+  optionalIds?: string[];
+  onOptionalChange?: (ids: string[]) => void;
 }
 
-/**
- * Participant chooser. Supports inline creation: when the search query
- * doesn't match anything, a small in-line form lets the secretary add
- * a new participant with role + unit without leaving the discussion form.
- */
 export function ParticipantPicker({
   participants,
   groups = [],
@@ -43,6 +43,10 @@ export function ParticipantPicker({
   nameHint = "",
   placeholder = "חפש משתתף...",
   maxHeight = 220,
+  extraValue = [],
+  onExtraChange,
+  optionalIds = [],
+  onOptionalChange,
 }: Props) {
   const [query, setQuery] = React.useState("");
   const [creatingForName, setCreatingForName] = React.useState<string | null>(null);
@@ -64,7 +68,6 @@ export function ParticipantPicker({
         )
       : [...participants];
 
-    // Boost participants whose unit appears in the discussion name
     if (nameHint.trim()) {
       list.sort((a, b) => {
         const aMatch = !!(a.unit && a.unit !== HOME_UNIT && nameHint.includes(a.unit));
@@ -78,8 +81,28 @@ export function ParticipantPicker({
   }, [participants, query, nameHint]);
 
   const toggle = (id: string) => {
-    if (value.includes(id)) onChange(value.filter((v) => v !== id));
-    else onChange([...value, id]);
+    if (value.includes(id)) {
+      onChange(value.filter((v) => v !== id));
+      if (optionalIds.includes(id)) {
+        onOptionalChange?.(optionalIds.filter((i) => i !== id));
+      }
+    } else {
+      onChange([...value, id]);
+      // Auto-mark as optional if the participant is globally optional
+      const p = participants.find((x) => x.id === id);
+      if (p?.optional && onOptionalChange && !optionalIds.includes(id)) {
+        onOptionalChange([...optionalIds, id]);
+      }
+    }
+  };
+
+  const toggleOptional = (id: string) => {
+    if (!onOptionalChange) return;
+    if (optionalIds.includes(id)) {
+      onOptionalChange(optionalIds.filter((i) => i !== id));
+    } else {
+      onOptionalChange([...optionalIds, id]);
+    }
   };
 
   function startCreate() {
@@ -111,12 +134,21 @@ export function ParticipantPicker({
     setDraftUnit(HOME_UNIT);
   }
 
+  function addAsTemp() {
+    const name = query.trim();
+    if (!name || !onExtraChange) return;
+    onExtraChange([...extraValue, name]);
+    setQuery("");
+  }
+
   function addGroup(groupId: string) {
     const group = groups.find((g) => g.id === groupId);
     if (!group) return;
     const next = [...new Set([...value, ...group.participantIds])];
     onChange(next);
   }
+
+  const hasSelected = selected.length > 0 || extraValue.length > 0;
 
   return (
     <div className="space-y-2">
@@ -148,17 +180,56 @@ export function ParticipantPicker({
       )}
 
       {/* Selected chips */}
-      {selected.length > 0 && (
+      {hasSelected && (
         <div className="flex flex-wrap gap-1.5">
-          {selected.map((p) => (
-            <Chip
-              key={p.id}
-              size="sm"
-              onRemove={() => toggle(p.id)}
-              active
+          {selected.map((p) => {
+            const isOpt = optionalIds.includes(p.id);
+            return (
+              <span
+                key={p.id}
+                className="inline-flex items-center gap-1 rounded-full border bg-primary text-primary-foreground border-primary px-2.5 py-1 text-xs font-medium"
+              >
+                <span>{p.name}</span>
+                {onOptionalChange && (
+                  <button
+                    type="button"
+                    title={isOpt ? "בטל רשות" : "סמן כרשות לדיון זה"}
+                    onClick={() => toggleOptional(p.id)}
+                    className={cn(
+                      "rounded px-1 text-[9px] leading-tight transition-colors select-none",
+                      isOpt ? "bg-white/30 text-white" : "opacity-30 hover:opacity-70 text-white/80"
+                    )}
+                  >
+                    רשות
+                  </button>
+                )}
+                <button
+                  type="button"
+                  aria-label="הסר"
+                  onClick={() => toggle(p.id)}
+                  className="rounded-full hover:bg-white/20 p-0.5"
+                >
+                  <X size={10} />
+                </button>
+              </span>
+            );
+          })}
+          {extraValue.map((name, i) => (
+            <span
+              key={`extra-${i}`}
+              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted text-foreground/70 px-2.5 py-1 text-xs font-medium"
             >
-              {p.name}
-            </Chip>
+              <span>{name}</span>
+              <span className="text-[9px] opacity-50 mx-0.5">זמני</span>
+              <button
+                type="button"
+                aria-label="הסר"
+                onClick={() => onExtraChange?.(extraValue.filter((_, j) => j !== i))}
+                className="rounded-full hover:bg-foreground/10 p-0.5"
+              >
+                <X size={10} />
+              </button>
+            </span>
           ))}
         </div>
       )}
@@ -173,7 +244,6 @@ export function ParticipantPicker({
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
-            // Cancel inline-create if user keeps typing a different name
             if (creatingForName && creatingForName !== e.target.value.trim()) {
               setCreatingForName(null);
             }
@@ -183,12 +253,12 @@ export function ParticipantPicker({
         />
       </div>
 
-      {/* Inline create form — appears once the user clicks "add" on a missing name */}
+      {/* Inline create form */}
       {creatingForName && (
         <div className="rounded-lg border border-accent/40 bg-accent/5 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium">
-              משתתף חדש: <span className="font-semibold">{creatingForName}</span>
+              משתתף חדש (קבוע): <span className="font-semibold">{creatingForName}</span>
             </span>
             <button
               type="button"
@@ -219,7 +289,7 @@ export function ParticipantPicker({
             </p>
             <Button size="sm" onClick={commitCreate}>
               <Check size={14} />
-              הוסף
+              הוסף קבוע
             </Button>
           </div>
         </div>
@@ -234,54 +304,74 @@ export function ParticipantPicker({
           {filtered.length === 0 ? (
             <div className="p-3 text-sm text-muted-foreground">
               <p>לא נמצאו משתתפים מתאימים.</p>
-              {onCreate && query.trim() && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={startCreate}
-                  className="mt-2"
-                >
-                  <Plus size={14} />
-                  הוסף "{query}" כמשתתף חדש
-                </Button>
+              {query.trim() && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {onCreate && (
+                    <Button size="sm" variant="outline" onClick={startCreate}>
+                      <Plus size={14} />
+                      הוסף "{query}" קבוע
+                    </Button>
+                  )}
+                  {onExtraChange && (
+                    <Button size="sm" variant="ghost" onClick={addAsTemp}>
+                      <Plus size={14} />
+                      הוסף "{query}" זמנית
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {filtered.map((p) => {
-                const isOn = value.includes(p.id);
-                const isExternal = !!p.unit && p.unit !== HOME_UNIT;
-                return (
-                  <li key={p.id}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(p.id)}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-2.5 text-right hover:bg-muted/70 transition-colors",
-                        isOn && "bg-accent/5"
-                      )}
-                    >
-                      <Avatar name={p.name} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium truncate flex items-center gap-1.5 flex-wrap">
-                          <span className="truncate">{p.name}</span>
-                          {isExternal && (
-                            <Badge tone="warning">חיצוני</Badge>
-                          )}
-                          {p.optional && (
-                            <Badge tone="muted">רשות</Badge>
-                          )}
+            <>
+              <ul className="divide-y divide-border">
+                {filtered.map((p) => {
+                  const isOn = value.includes(p.id);
+                  const isExternal = !!p.unit && p.unit !== HOME_UNIT;
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(p.id)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-2.5 text-right hover:bg-muted/70 transition-colors",
+                          isOn && "bg-accent/5"
+                        )}
+                      >
+                        <Avatar name={p.name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate flex items-center gap-1.5 flex-wrap">
+                            <span className="truncate">{p.name}</span>
+                            {isExternal && (
+                              <Badge tone="warning">חיצוני</Badge>
+                            )}
+                            {p.optional && (
+                              <Badge tone="muted">רשות (ברירת מחדל)</Badge>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {[p.role, p.unit].filter(Boolean).join(" · ")}
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {[p.role, p.unit].filter(Boolean).join(" · ")}
-                        </div>
-                      </div>
-                      {isOn && <Check size={16} className="text-accent" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                        {isOn && <Check size={16} className="text-accent" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {/* Add temp at bottom of results */}
+              {query.trim() && onExtraChange && (
+                <div className="border-t border-border">
+                  <button
+                    type="button"
+                    onClick={addAsTemp}
+                    className="w-full flex items-center gap-2 p-2.5 text-right text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    <Plus size={12} className="shrink-0" />
+                    הוסף &quot;{query}&quot; זמנית (לא יישמר)
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
