@@ -180,10 +180,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   return (
     <>
       {/* ── Desktop Kanban (md+) ─────────────────────────────────────── */}
-      <div
-        className="hidden lg:flex gap-3 px-4 pb-4 pt-3"
-        style={{ height: "calc(100dvh - 130px)" }}
-      >
+      <div className="hidden lg:flex gap-3 px-4 pb-4 pt-3 h-full min-h-0">
         {/* Column 1: בתכנון */}
         <KanbanColumn
           label="בתכנון"

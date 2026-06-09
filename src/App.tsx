@@ -115,7 +115,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-background text-foreground flex flex-col">
       <TopBar
         onAdd={() => {
           setTemplate(null);
@@ -129,7 +129,7 @@ export default function App() {
         userEmail={user.email}
       />
 
-      <main className="flex-1 max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
+      <main className="flex-1 min-h-0 max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {tab === "search" && <SearchView onOpenDiscussion={setOpenId} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
