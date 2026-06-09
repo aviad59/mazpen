@@ -129,7 +129,7 @@ export default function App() {
         userEmail={user.email}
       />
 
-      <main className="flex-1 max-w-xl w-full mx-auto">
+      <main className="flex-1 max-w-xl w-full mx-auto md:max-w-none md:overflow-hidden">
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {tab === "search" && <SearchView onOpenDiscussion={setOpenId} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}

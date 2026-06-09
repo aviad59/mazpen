@@ -1,10 +1,11 @@
 import * as React from "react";
-import { Sparkles, ChevronDown } from "lucide-react";
+import { Sparkles, ChevronDown, Plus } from "lucide-react";
 import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Switch } from "./ui/Switch";
 import { Select } from "./ui/Select";
+import { Chip } from "./ui/Chip";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
@@ -31,6 +32,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const [recurrence, setRecurrence] = React.useState<Recurrence>("none");
   const [notes, setNotes] = React.useState("");
   const [durationMinutes, setDurationMinutes] = React.useState<string>("");
+  const [extraParticipants, setExtraParticipants] = React.useState<string[]>([]);
+  const [tempName, setTempName] = React.useState("");
   const [drivingTimePreference, setDrivingTimePreference] = React.useState(false);
   const [requiresBashiReview, setRequiresBashiReview] = React.useState(false);
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
@@ -48,6 +51,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     setRecurrence(template?.recurrence ?? "none");
     setNotes(template?.notes ?? "");
     setDurationMinutes(template?.durationMinutes?.toString() ?? "");
+    setExtraParticipants(template?.extraParticipants ?? []);
+    setTempName("");
     setDrivingTimePreference(template?.drivingTimePreference ?? false);
     setRequiresBashiReview(template?.requiresBashiReview ?? false);
     setAdvancedOpen(false);
@@ -87,6 +92,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         name: name.trim(),
         dateWindow,
         participantIds,
+        extraParticipants: extraParticipants.length ? extraParticipants : undefined,
         leaderId: effectiveLeaderId || undefined,
         requiresSummary: effectiveRequiresSummary,
         requiresSubstrate: effectiveRequiresSubstrate,
@@ -161,6 +167,52 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
             <p className="text-[11px] text-muted-foreground mt-1">
               חובה להוסיף לפחות משתתף אחד. הראשון יהיה המוביל כברירת מחדל.
             </p>
+          )}
+        </div>
+
+        {/* Extra (temporary) participants */}
+        <div>
+          <Label>משתתפים זמניים</Label>
+          <p className="text-[11px] text-muted-foreground mb-1.5">שמות שלא נשמרים ברשימת המשתתפים</p>
+          <div className="flex gap-2">
+            <Input
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              placeholder="שם המשתתף..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const n = tempName.trim();
+                  if (n) { setExtraParticipants((prev) => [...prev, n]); setTempName(""); }
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!tempName.trim()}
+              onClick={() => {
+                const n = tempName.trim();
+                if (n) { setExtraParticipants((prev) => [...prev, n]); setTempName(""); }
+              }}
+            >
+              <Plus size={14} />
+            </Button>
+          </div>
+          {extraParticipants.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {extraParticipants.map((name, i) => (
+                <Chip
+                  key={i}
+                  size="sm"
+                  active
+                  onRemove={() => setExtraParticipants((prev) => prev.filter((_, j) => j !== i))}
+                >
+                  {name}
+                </Chip>
+              ))}
+            </div>
           )}
         </div>
 

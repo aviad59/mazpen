@@ -13,7 +13,7 @@ interface Props {
   onOpenDiscussion: (id: string) => void;
 }
 
-// ---- Phase box wrapper ---------------------------------------------------
+// ---- Phase box wrapper (mobile) -----------------------------------------
 
 interface PhaseBoxProps {
   label: string;
@@ -48,6 +48,38 @@ function PhaseBox({ label, count, headerClass, borderClass, children, collapsed,
           {children}
         </div>
       )}
+    </div>
+  );
+}
+
+// ---- Desktop kanban column -----------------------------------------------
+
+interface KanbanColumnProps {
+  label: string;
+  count: number;
+  headerClass: string;
+  borderClass: string;
+  emptyTitle: string;
+  emptyIcon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function KanbanColumn({ label, count, headerClass, borderClass, emptyTitle, emptyIcon, children }: KanbanColumnProps) {
+  return (
+    <div className={cn("flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border-2 overflow-hidden", borderClass)}>
+      <div className={cn("flex items-center justify-between px-4 py-2.5 shrink-0", headerClass)}>
+        <span className="text-sm font-bold tracking-wide">{label}</span>
+        <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5">{count}</span>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3 bg-background">
+        {count === 0 ? (
+          <div className="flex items-center justify-center h-32">
+            <EmptyState icon={emptyIcon} title={emptyTitle} className="py-2" />
+          </div>
+        ) : (
+          children
+        )}
+      </div>
     </div>
   );
 }
@@ -146,34 +178,34 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   }
 
   return (
-    <div className="space-y-4 px-3 pb-24 pt-3">
-
-      {/* ── Phase 1: Planning (חדש) ── */}
-      <PhaseBox
-        label="בתכנון"
-        count={planningCount}
-        headerClass="bg-blue-500 text-white"
-        borderClass="border-blue-200 dark:border-blue-800"
-        collapsed={!!phaseCollapsed["planning"]}
-        onToggle={() => togglePhase("planning")}
+    <>
+      {/* ── Desktop Kanban (md+) ─────────────────────────────────────── */}
+      <div
+        className="hidden md:flex gap-3 px-4 pb-4 pt-3"
+        style={{ height: "calc(100dvh - 130px)" }}
       >
-        {PLANNING_WINDOWS.map((w) => {
-          const items = buckets.planning[w];
-          const isCollapsed = !!collapsed[w];
-          return (
-            <section key={w}>
-              <SectionHeader
-                title={SECTION_LABEL[w]}
-                hint={items.length > 0 ? (sectionDateRange(w) ?? SECTION_HINT[w]) : undefined}
-                count={items.length}
-                variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
-                collapsed={isCollapsed}
-                onToggle={() => toggleSection(w)}
-              />
-              {!isCollapsed && (
-                items.length === 0 ? (
-                  <EmptyState icon={WINDOW_ICON[w]} title={T.empty[w]} className="py-3" />
-                ) : (
+        {/* Column 1: בתכנון */}
+        <KanbanColumn
+          label="בתכנון"
+          count={planningCount}
+          headerClass="bg-blue-500 text-white"
+          borderClass="border-blue-200 dark:border-blue-800"
+          emptyTitle={T.empty.this_week}
+          emptyIcon={<CalendarRange size={32} />}
+        >
+          <div className="space-y-3">
+            {PLANNING_WINDOWS.map((w) => {
+              const items = buckets.planning[w];
+              if (items.length === 0) return null;
+              const dateHint = sectionDateRange(w);
+              return (
+                <section key={w}>
+                  <div className="flex items-baseline justify-between mb-1.5 px-0.5">
+                    <span className="text-xs font-semibold text-foreground/70">{SECTION_LABEL[w]}</span>
+                    {dateHint && (
+                      <span className="text-[10px] text-muted-foreground/60">{dateHint}</span>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     {items.map((d) => (
                       <DiscussionCard
@@ -182,61 +214,157 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                         lookupParticipant={lookupParticipant}
                         onOpen={onOpenDiscussion}
                         isNew={isNewDiscussion(d.id)}
+                        compact
                       />
                     ))}
                   </div>
-                )
-              )}
-            </section>
-          );
-        })}
-      </PhaseBox>
+                </section>
+              );
+            })}
+          </div>
+        </KanbanColumn>
 
-      {/* ── Phase 2: Coordinated (תואם) ── */}
-      <PhaseBox
-        label="תואם"
-        count={buckets.coordinated.length}
-        headerClass="bg-teal-500 text-white"
-        borderClass="border-teal-200 dark:border-teal-800"
-        collapsed={!!phaseCollapsed["coordinated"]}
-        onToggle={() => togglePhase("coordinated")}
-      >
-        <div className="space-y-2 pt-1">
-          {buckets.coordinated.map((d) => (
-            <DiscussionCard
-              key={d.id}
-              discussion={d}
-              lookupParticipant={lookupParticipant}
-              onOpen={onOpenDiscussion}
-              isNew={isNewDiscussion(d.id)}
-              hideWindow
-            />
-          ))}
-        </div>
-      </PhaseBox>
+        {/* Column 2: תואם */}
+        <KanbanColumn
+          label="תואם"
+          count={buckets.coordinated.length}
+          headerClass="bg-teal-500 text-white"
+          borderClass="border-teal-200 dark:border-teal-800"
+          emptyTitle="אין דיונים תואמים"
+          emptyIcon={<CalendarRange size={32} />}
+        >
+          <div className="space-y-2">
+            {buckets.coordinated.map((d) => (
+              <DiscussionCard
+                key={d.id}
+                discussion={d}
+                lookupParticipant={lookupParticipant}
+                onOpen={onOpenDiscussion}
+                isNew={isNewDiscussion(d.id)}
+                hideWindow
+                compact
+              />
+            ))}
+          </div>
+        </KanbanColumn>
 
-      {/* ── Phase 3: Summary (ממתין לסיכום) ── */}
-      <PhaseBox
-        label="ממתין לסיכום"
-        count={buckets.summary.length}
-        headerClass="bg-amber-500 text-white"
-        borderClass="border-amber-200 dark:border-amber-800"
-        collapsed={!!phaseCollapsed["summary"]}
-        onToggle={() => togglePhase("summary")}
-      >
-        <div className="space-y-2 pt-1">
-          {buckets.summary.map((d) => (
-            <DiscussionCard
-              key={d.id}
-              discussion={d}
-              lookupParticipant={lookupParticipant}
-              onOpen={onOpenDiscussion}
-              isNew={isNewDiscussion(d.id)}
-            />
-          ))}
-        </div>
-      </PhaseBox>
+        {/* Column 3: ממתין לסיכום */}
+        <KanbanColumn
+          label="ממתין לסיכום"
+          count={buckets.summary.length}
+          headerClass="bg-amber-500 text-white"
+          borderClass="border-amber-200 dark:border-amber-800"
+          emptyTitle={T.empty.waiting_summary}
+          emptyIcon={<Clock size={32} />}
+        >
+          <div className="space-y-2">
+            {buckets.summary.map((d) => (
+              <DiscussionCard
+                key={d.id}
+                discussion={d}
+                lookupParticipant={lookupParticipant}
+                onOpen={onOpenDiscussion}
+                isNew={isNewDiscussion(d.id)}
+                compact
+              />
+            ))}
+          </div>
+        </KanbanColumn>
+      </div>
 
-    </div>
+      {/* ── Mobile list (below md) ──────────────────────────────────── */}
+      <div className="md:hidden space-y-4 px-3 pb-24 pt-3">
+
+        {/* Phase 1: Planning (חדש) */}
+        <PhaseBox
+          label="בתכנון"
+          count={planningCount}
+          headerClass="bg-blue-500 text-white"
+          borderClass="border-blue-200 dark:border-blue-800"
+          collapsed={!!phaseCollapsed["planning"]}
+          onToggle={() => togglePhase("planning")}
+        >
+          {PLANNING_WINDOWS.map((w) => {
+            const items = buckets.planning[w];
+            const isCollapsed = !!collapsed[w];
+            return (
+              <section key={w}>
+                <SectionHeader
+                  title={SECTION_LABEL[w]}
+                  hint={items.length > 0 ? (sectionDateRange(w) ?? SECTION_HINT[w]) : undefined}
+                  count={items.length}
+                  variant={w === "this_week" && items.length > 0 ? "alert" : "default"}
+                  collapsed={isCollapsed}
+                  onToggle={() => toggleSection(w)}
+                />
+                {!isCollapsed && (
+                  items.length === 0 ? (
+                    <EmptyState icon={WINDOW_ICON[w]} title={T.empty[w]} className="py-3" />
+                  ) : (
+                    <div className="space-y-2">
+                      {items.map((d) => (
+                        <DiscussionCard
+                          key={d.id}
+                          discussion={d}
+                          lookupParticipant={lookupParticipant}
+                          onOpen={onOpenDiscussion}
+                          isNew={isNewDiscussion(d.id)}
+                        />
+                      ))}
+                    </div>
+                  )
+                )}
+              </section>
+            );
+          })}
+        </PhaseBox>
+
+        {/* Phase 2: Coordinated (תואם) */}
+        <PhaseBox
+          label="תואם"
+          count={buckets.coordinated.length}
+          headerClass="bg-teal-500 text-white"
+          borderClass="border-teal-200 dark:border-teal-800"
+          collapsed={!!phaseCollapsed["coordinated"]}
+          onToggle={() => togglePhase("coordinated")}
+        >
+          <div className="space-y-2 pt-1">
+            {buckets.coordinated.map((d) => (
+              <DiscussionCard
+                key={d.id}
+                discussion={d}
+                lookupParticipant={lookupParticipant}
+                onOpen={onOpenDiscussion}
+                isNew={isNewDiscussion(d.id)}
+                hideWindow
+              />
+            ))}
+          </div>
+        </PhaseBox>
+
+        {/* Phase 3: Summary (ממתין לסיכום) */}
+        <PhaseBox
+          label="ממתין לסיכום"
+          count={buckets.summary.length}
+          headerClass="bg-amber-500 text-white"
+          borderClass="border-amber-200 dark:border-amber-800"
+          collapsed={!!phaseCollapsed["summary"]}
+          onToggle={() => togglePhase("summary")}
+        >
+          <div className="space-y-2 pt-1">
+            {buckets.summary.map((d) => (
+              <DiscussionCard
+                key={d.id}
+                discussion={d}
+                lookupParticipant={lookupParticipant}
+                onOpen={onOpenDiscussion}
+                isNew={isNewDiscussion(d.id)}
+              />
+            ))}
+          </div>
+        </PhaseBox>
+
+      </div>
+    </>
   );
 }

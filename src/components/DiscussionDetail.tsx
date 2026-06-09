@@ -72,6 +72,7 @@ const EMPTY_EDIT: EditState = {
   notes: "",
   dateWindow: "unspecified",
   participantIds: [],
+  extraParticipants: [],
   leaderId: "",
   requiresSummary: true,
   requiresSubstrate: true,
@@ -96,6 +97,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       notes: discussion.notes ?? "",
       dateWindow: discussion.dateWindow,
       participantIds: discussion.participantIds,
+      extraParticipants: discussion.extraParticipants ?? [],
       leaderId: discussion.leaderId ?? "",
       requiresSummary: discussion.requiresSummary,
       requiresSubstrate: discussion.requiresSubstrate,
@@ -125,6 +127,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       name: edit.name.trim(),
       notes: edit.notes.trim() || undefined,
       participantIds: edit.participantIds,
+      extraParticipants: edit.extraParticipants.length ? edit.extraParticipants : undefined,
       leaderId: editIsPE ? undefined : edit.leaderId,
       requiresSummary: editIsPE ? false : edit.requiresSummary,
       requiresSubstrate: editIsPE ? false : edit.requiresSubstrate,
@@ -292,9 +295,9 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold flex items-center gap-1.5"><Users size={14} /> {T.participants}</h3>
-              <span className="text-xs text-muted-foreground">{d.participantIds.length}</span>
+              <span className="text-xs text-muted-foreground">{d.participantIds.length + (d.extraParticipants?.length ?? 0)}</span>
             </div>
-            {d.participantIds.length === 0 ? (
+            {d.participantIds.length === 0 && !d.extraParticipants?.length ? (
               <p className="text-xs text-muted-foreground">אין משתתפים.</p>
             ) : (
               <ul className="space-y-2">
@@ -317,6 +320,17 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
                     </li>
                   );
                 })}
+                {d.extraParticipants?.map((name, i) => (
+                  <li key={`extra-${i}`} className="flex items-center gap-2">
+                    <Avatar name={name} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        <span className="truncate">{name}</span>
+                        <Badge tone="muted">זמני</Badge>
+                      </div>
+                    </div>
+                  </li>
+                ))}
               </ul>
             )}
           </Card>

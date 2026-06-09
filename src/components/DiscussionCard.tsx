@@ -108,7 +108,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
       )}
 
       {/* Participants strip */}
-      {participants.length > 0 && (
+      {(participants.length > 0 || (d.extraParticipants?.length ?? 0) > 0) && (
         <div className="mt-3 flex items-center gap-1.5 flex-wrap">
           <div className="flex -space-x-1.5 space-x-reverse">
             {participants.slice(0, 4).map((p) => (
@@ -119,10 +119,18 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
                 className="ring-2 ring-card"
               />
             ))}
+            {d.extraParticipants?.slice(0, Math.max(0, 4 - participants.length)).map((name, i) => (
+              <Avatar
+                key={`x${i}`}
+                name={name}
+                size="xs"
+                className="ring-2 ring-card opacity-70"
+              />
+            ))}
           </div>
-          {participants.length > 4 && (
+          {(participants.length + (d.extraParticipants?.length ?? 0)) > 4 && (
             <span className="text-[11px] text-muted-foreground">
-              +{participants.length - 4}
+              +{participants.length + (d.extraParticipants?.length ?? 0) - 4}
             </span>
           )}
           {leader && (

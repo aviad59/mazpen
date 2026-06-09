@@ -1,8 +1,10 @@
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { Input, Textarea, Label } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Switch } from "./ui/Switch";
+import { Button } from "./ui/Button";
+import { Chip } from "./ui/Chip";
 import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { ParticipantPicker } from "./ParticipantPicker";
 import { DateWindowPicker } from "./DateWindowPicker";
@@ -15,6 +17,7 @@ export interface EditState {
   notes: string;
   dateWindow: DateWindow;
   participantIds: string[];
+  extraParticipants: string[];
   leaderId: string;
   requiresSummary: boolean;
   requiresSubstrate: boolean;
@@ -34,6 +37,7 @@ interface Props {
 export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }: Props) {
   const { participants, groups, addParticipant, changeStatus } = useStore();
   const [advancedOpen, setAdvancedOpen] = React.useState(false);
+  const [tempName, setTempName] = React.useState("");
 
   const isPE = isPEDiscussion(state.name);
 
@@ -82,6 +86,52 @@ export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }:
         />
         {state.participantIds.length === 0 && (
           <p className="text-[11px] text-destructive mt-1">דיון חייב לכלול לפחות משתתף אחד.</p>
+        )}
+      </div>
+
+      {/* Extra (temporary) participants */}
+      <div>
+        <Label>משתתפים זמניים</Label>
+        <p className="text-[11px] text-muted-foreground mb-1.5">שמות שלא נשמרים ברשימת המשתתפים</p>
+        <div className="flex gap-2">
+          <Input
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            placeholder="שם המשתתף..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const n = tempName.trim();
+                if (n) { onChange({ extraParticipants: [...state.extraParticipants, n] }); setTempName(""); }
+              }
+            }}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!tempName.trim()}
+            onClick={() => {
+              const n = tempName.trim();
+              if (n) { onChange({ extraParticipants: [...state.extraParticipants, n] }); setTempName(""); }
+            }}
+          >
+            <Plus size={14} />
+          </Button>
+        </div>
+        {state.extraParticipants.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {state.extraParticipants.map((name, i) => (
+              <Chip
+                key={i}
+                size="sm"
+                active
+                onRemove={() => onChange({ extraParticipants: state.extraParticipants.filter((_, j) => j !== i) })}
+              >
+                {name}
+              </Chip>
+            ))}
+          </div>
         )}
       </div>
 

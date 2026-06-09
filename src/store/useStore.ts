@@ -169,6 +169,7 @@ export type CreateDiscussionInput = {
   name: string;
   leaderId?: string;
   participantIds: string[];
+  extraParticipants?: string[];
   dateWindow?: DateWindow;
   requiresSummary?: boolean;
   requiresSubstrate?: boolean;
@@ -192,6 +193,7 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     dateWindow: resolvedWindow,
     scheduledWeek: scheduledWeekForWindow(resolvedWindow),
     participantIds: input.participantIds,
+    extraParticipants: input.extraParticipants,
     leaderId: input.leaderId,
     requiresSummary: input.requiresSummary ?? true,
     requiresSubstrate: input.requiresSubstrate ?? true,
