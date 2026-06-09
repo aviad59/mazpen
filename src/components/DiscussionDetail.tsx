@@ -158,21 +158,21 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   }
 
   async function handleShare() {
-    const url = `${window.location.origin}${window.location.pathname}?id=${d.id}`;
+    const shareUrl = `${window.location.origin}/api/share?id=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: d.name, text: `${d.name}\n${url}` });
+        await navigator.share({ title: d.name, text: `${d.name}\n${shareUrl}` });
         return;
       } catch {
         // User cancelled or share failed — fall through to clipboard
       }
     }
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareUrl);
     } catch {
       // Clipboard not available — use legacy execCommand
       const ta = document.createElement("textarea");
-      ta.value = url;
+      ta.value = shareUrl;
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
