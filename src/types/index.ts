@@ -70,6 +70,7 @@ export type HistoryKind =
   | "participants_changed"
   | "leader_changed"
   | "summary_changed"
+  | "edited"
   | "note";
 
 export interface HistoryEvent {

@@ -27,6 +27,7 @@ import { StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
 import { HOME_UNIT, isPEDiscussion, RECURRENCE_LABEL, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import { describeChanges } from "@/lib/historyDiff";
 import { cn } from "@/lib/utils";
 import type { Discussion, DiscussionStatus } from "@/types";
 
@@ -143,7 +144,12 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
     if (edit.dateWindow !== d.dateWindow) {
       await setDateWindow(d.id, edit.dateWindow);
     }
-    await updateDiscussion(d.id, patch, { kind: "note", text: "פרטי הדיון עודכנו" });
+    const changes = describeChanges(d, patch, lookupParticipant);
+    if (changes.length > 0) {
+      await updateDiscussion(d.id, patch, { kind: "edited", text: changes.join("\n") });
+    } else {
+      await updateDiscussion(d.id, patch);
+    }
     setEditing(false);
   }
 

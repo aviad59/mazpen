@@ -18,6 +18,7 @@ const ICON_BY_KIND: Record<HistoryKind, LucideIcon> = {
   participants_changed: Users,
   leader_changed: Users,
   summary_changed: FileText,
+  edited: Edit3,
   note: MessageSquare,
 };
 
@@ -28,6 +29,7 @@ const KIND_LABEL: Record<HistoryKind, string> = {
   participants_changed: "משתתפים",
   leader_changed: "מוביל",
   summary_changed: "סיכום",
+  edited: "עריכה",
   note: "הערה",
 };
 
@@ -38,6 +40,7 @@ const KIND_COLOR: Record<HistoryKind, string> = {
   participants_changed: "text-teal-600 bg-teal-50 dark:bg-teal-950",
   leader_changed: "text-teal-600 bg-teal-50 dark:bg-teal-950",
   summary_changed: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950",
+  edited: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950",
   note: "text-muted-foreground bg-muted",
 };
 
@@ -70,7 +73,7 @@ export function ActivityTimeline({ history }: { history: HistoryEvent[] }) {
                   {relativeTimeHe(evt.at)}
                 </time>
               </div>
-              <p className="text-sm leading-snug">{evt.text}</p>
+              <p className="text-sm leading-snug whitespace-pre-line">{evt.text}</p>
               {evt.by && (
                 <p className="text-xs text-muted-foreground">
                   בוצע על-ידי: <span className="font-medium text-foreground">{evt.by}</span>
