@@ -10,6 +10,7 @@ import { DateWindowPicker } from "./DateWindowPicker";
 import { useStore } from "@/store/useStore";
 import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
 import { T, RECURRENCE_LABEL, isPEDiscussion } from "@/lib/he";
+import { findSimilarDiscussions } from "@/lib/utils";
 import type { DateWindow, Discussion, Recurrence } from "@/types";
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
-  const { participants, groups, addParticipant, createDiscussion } = useStore();
+  const { discussions, participants, groups, addParticipant, createDiscussion } = useStore();
 
   const [name, setName] = React.useState("");
   const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
@@ -82,6 +83,14 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!canSubmit) return;
+    const similar = findSimilarDiscussions(name, discussions);
+    if (similar.length > 0) {
+      const namesList = similar.map((d) => `• ${d.name}`).join("\n");
+      const proceed = confirm(
+        `כבר קיים דיון בשם דומה:\n${namesList}\n\nליצור בכל זאת דיון חדש?`
+      );
+      if (!proceed) return;
+    }
     setSubmitting(true);
     try {
       const created = await createDiscussion({

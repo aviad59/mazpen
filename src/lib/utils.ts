@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { DateWindow, DashboardSection } from "@/types";
+import type { DateWindow, DashboardSection, Discussion } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -125,6 +125,38 @@ export function scheduledWeekForWindow(w: DateWindow): string | undefined {
  * Given a discussion's dateWindow and scheduledWeek (ISO date),
  * return which dashboard section it belongs to.
  */
+function normalizeDiscussionName(s: string): string {
+  return s.trim().toLowerCase().replace(/["'״׳]/g, "").replace(/\s+/g, " ");
+}
+
+function levenshtein(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+/** Find existing (non-cancelled) discussions whose name closely matches `name`,
+ *  to warn against accidental duplicates when creating a new one. */
+export function findSimilarDiscussions(name: string, discussions: Discussion[]): Discussion[] {
+  const norm = normalizeDiscussionName(name);
+  if (!norm) return [];
+  return discussions.filter((d) => {
+    if (d.status === "cancelled") return false;
+    const dn = normalizeDiscussionName(d.name);
+    if (!dn) return false;
+    if (dn === norm || dn.includes(norm) || norm.includes(dn)) return true;
+    const dist = levenshtein(norm, dn);
+    const maxLen = Math.max(norm.length, dn.length);
+    return maxLen > 0 && dist / maxLen <= 0.25;
+  });
+}
+
 export function effectiveScheduledSection(
   dateWindow: DateWindow,
   scheduledWeek: string | undefined
