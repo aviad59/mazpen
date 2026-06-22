@@ -6,6 +6,8 @@
  *
  * Required Edge Function secrets (same as notify-discussion):
  * VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+ *
+ * Deployed via the deploy-supabase-functions.yml CI workflow.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
