@@ -7,6 +7,7 @@ import { BottomNav, type Tab } from "./components/BottomNav";
 import { QuickAddSheet } from "./components/QuickAddSheet";
 import { DiscussionDetail } from "./components/DiscussionDetail";
 import { ParticipantsSheet } from "./components/ParticipantsSheet";
+import { NotificationSettingsSheet } from "./components/NotificationSettingsSheet";
 import { BackendErrorScreen } from "./components/BackendErrorScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { IOSInstallBanner } from "./components/IOSInstallBanner";
@@ -42,6 +43,7 @@ export default function App() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [bashiAlertOpen, setBashiAlertOpen] = React.useState(true);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = React.useState(false);
   const [openId, setOpenId] = React.useState<string | null>(() => getAndClearSharedId());
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
@@ -123,6 +125,7 @@ export default function App() {
         }}
         onOpenSearch={() => setTab("search")}
         onOpenParticipants={() => setParticipantsOpen(true)}
+        onOpenNotificationSettings={() => setNotificationSettingsOpen(true)}
         onClearAll={handleClearAll}
         pendingScheduling={pendingScheduling}
         onSignOut={signOut}
@@ -178,6 +181,11 @@ export default function App() {
       <ParticipantsSheet
         open={participantsOpen}
         onClose={() => setParticipantsOpen(false)}
+      />
+
+      <NotificationSettingsSheet
+        open={notificationSettingsOpen}
+        onClose={() => setNotificationSettingsOpen(false)}
       />
     </div>
   );

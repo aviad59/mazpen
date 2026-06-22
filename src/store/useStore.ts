@@ -29,6 +29,8 @@ import { isBackendConfigured } from "@/lib/repo";
 import { supabase } from "@/lib/supabaseClient";
 import { WINDOW_LABEL, isPEDiscussion } from "@/lib/he";
 import { uid, scheduledWeekForWindow } from "@/lib/utils";
+import { getNotificationSettings } from "@/lib/notificationSettings";
+import { scheduleNotification, cancelNotification } from "@/lib/notificationQueue";
 
 /** Set by App.tsx whenever the auth user changes. Used to stamp HistoryEvents. */
 let currentUserName = "";
@@ -211,13 +213,18 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
   await dbPut(d);
   setState((p) => ({ ...p, discussions: [...p.discussions, d] }));
 
-  // Notify other users via Edge Function (fire-and-forget)
-  supabase.auth.getUser().then(({ data: { user } }) => {
-    if (!user) return;
-    supabase.functions.invoke("notify-discussion", {
-      body: { discussionName: d.name, creatorUserId: user.id },
-    }).catch(() => { /* non-critical */ });
-  });
+  // Notify other users via Edge Function — debounced, so creating and then
+  // immediately deleting a discussion never sends a push.
+  if (getNotificationSettings().notifyNewDiscussion) {
+    scheduleNotification(`discussion:${d.id}`, () => {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase.functions.invoke("notify-discussion", {
+          body: { discussionName: d.name, creatorUserId: user.id },
+        }).catch(() => { /* non-critical */ });
+      });
+    });
+  }
 
   return d;
 }
@@ -245,6 +252,19 @@ async function changeStatus(id: string, to: DiscussionStatus, by?: string) {
     { ...current, status: to },
     buildEvent("status_changed", `סטטוס: ${statusLabelFor(current.status)} ← ${statusLabelFor(to)}`, { from: current.status, to, by })
   );
+
+  // Debounced — rapid status flips (or a flip immediately followed by a
+  // delete) collapse into at most one push, reflecting the final status.
+  if (getNotificationSettings().notifyStatusChange) {
+    scheduleNotification(`status:${id}`, () => {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        supabase.functions.invoke("notify-status-change", {
+          body: { discussionName: current.name, statusLabel: statusLabelFor(to), creatorUserId: user.id },
+        }).catch(() => { /* non-critical */ });
+      });
+    });
+  }
 }
 
 async function setDateWindow(id: string, w: DateWindow) {
@@ -258,6 +278,8 @@ async function setDateWindow(id: string, w: DateWindow) {
 }
 
 async function removeDiscussion(id: string) {
+  cancelNotification(`discussion:${id}`);
+  cancelNotification(`status:${id}`);
   await dbDelete(id);
   setState((p) => ({ ...p, discussions: p.discussions.filter((d) => d.id !== id) }));
 }
@@ -267,12 +289,14 @@ async function addParticipant(p: Omit<Participant, "id">): Promise<Participant> 
   await dbPutParticipant(full);
   setState((s) => ({ ...s, participants: [...s.participants, full] }));
 
-  // Notify other users (fire-and-forget)
-  supabase.auth.getUser().then(({ data: { user } }) => {
-    if (!user) return;
-    supabase.functions.invoke("notify-participant", {
-      body: { participantName: full.name, creatorUserId: user.id },
-    }).catch(() => { /* non-critical */ });
+  // Notify other users — debounced, same as discussions.
+  scheduleNotification(`participant:${full.id}`, () => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.functions.invoke("notify-participant", {
+        body: { participantName: full.name, creatorUserId: user.id },
+      }).catch(() => { /* non-critical */ });
+    });
   });
 
   return full;
@@ -284,6 +308,7 @@ async function updateParticipant(p: Participant): Promise<void> {
 }
 
 async function removeParticipant(id: string): Promise<void> {
+  cancelNotification(`participant:${id}`);
   await deleteParticipantById(id);
   setState((s) => ({ ...s, participants: s.participants.filter((x) => x.id !== id) }));
 }
