@@ -77,7 +77,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const hasParticipants = participantIds.length > 0 || extraParticipants.length > 0;
   const hasLeader =
     participantIds.length === 0 || (!!effectiveLeaderId && participantIds.includes(effectiveLeaderId));
-  const canSubmit = !!name.trim() && hasParticipants && (isPE || hasLeader) && !submitting;
+  const canSubmit = !!name.trim() && (isPE || hasLeader) && !submitting;
 
   const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
 
@@ -161,7 +161,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
         </div>
 
         <div>
-          <Label>{T.participants} *</Label>
+          <Label>{T.participants}</Label>
           <ParticipantPicker
             participants={participants}
             groups={groups}
@@ -176,7 +176,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           />
           {!hasParticipants && (
             <p className="text-[11px] text-muted-foreground mt-1">
-              חובה להוסיף לפחות משתתף אחד.
+              ניתן ליצור דיון בלי משתתפים — לא יוגדר מוביל.
             </p>
           )}
         </div>
