@@ -75,7 +75,8 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
   const effectiveRequiresSubstrate = isPE ? false : requiresSubstrate;
 
   const hasParticipants = participantIds.length > 0 || extraParticipants.length > 0;
-  const hasLeader = !!effectiveLeaderId && participantIds.includes(effectiveLeaderId);
+  const hasLeader =
+    participantIds.length === 0 || (!!effectiveLeaderId && participantIds.includes(effectiveLeaderId));
   const canSubmit = !!name.trim() && hasParticipants && (isPE || hasLeader) && !submitting;
 
   const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
