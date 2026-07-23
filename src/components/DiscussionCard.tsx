@@ -28,7 +28,8 @@ function externalUnits(participants: Participant[]): string[] {
 export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compact, isNew, hideWindow }: Props) {
   const thisWeek = d.dateWindow === "this_week";
 
-  const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+  const leaderLookup = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+  const leaderName = d.leaderId ? (leaderLookup?.name ?? d.leaderId) : undefined;
   const participants = d.participantIds
     .map((id) => lookupParticipant(id))
     .filter((p): p is Participant => !!p);
@@ -133,9 +134,9 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
               +{participants.length + (d.extraParticipants?.length ?? 0) - 4}
             </span>
           )}
-          {leader && (
+          {leaderName && (
             <Badge tone="muted" className="ms-auto">
-              {"מוביל: "}{leader.name}
+              {"מוביל: "}{leaderName}
             </Badge>
           )}
         </div>

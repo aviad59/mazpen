@@ -41,23 +41,32 @@ export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }:
 
   // Auto-select leader when participants or optionals change — exclude per-discussion optionals
   React.useEffect(() => {
-    if (isPE || state.participantIds.length === 0) return;
-    const eligibleIds = state.participantIds.filter(
-      (id) => !state.optionalParticipantIds.includes(id)
-    );
-    if (!state.leaderId || !eligibleIds.includes(state.leaderId)) {
-      onChange({ leaderId: eligibleIds[0] ?? state.participantIds[0] });
+    if (isPE) return;
+    if (state.participantIds.length > 0) {
+      const eligibleIds = state.participantIds.filter(
+        (id) => !state.optionalParticipantIds.includes(id)
+      );
+      if (!state.leaderId || !eligibleIds.includes(state.leaderId)) {
+        onChange({ leaderId: eligibleIds[0] ?? state.participantIds[0] });
+      }
+    } else if (state.extraParticipants.length > 0) {
+      if (!state.leaderId || !state.extraParticipants.includes(state.leaderId)) {
+        onChange({ leaderId: state.extraParticipants[0] });
+      }
     }
-  }, [state.participantIds, state.optionalParticipantIds, state.leaderId, onChange]);
+  }, [state.participantIds, state.optionalParticipantIds, state.extraParticipants, state.leaderId, onChange]);
 
   const effectiveLeaderId = isPE ? "" : (state.leaderId ?? "");
   const effectiveRequiresSummary = isPE ? false : state.requiresSummary;
   const effectiveRequiresSubstrate = isPE ? false : state.requiresSubstrate;
 
-  const leaderOptions = state.participantIds
-    .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p && !state.optionalParticipantIds.includes(p.id))
-    .map((p) => ({ value: p.id, label: p.name }));
+  const leaderOptions = [
+    ...state.participantIds
+      .map((id) => participants.find((p) => p.id === id))
+      .filter((p): p is NonNullable<typeof p> => !!p && !state.optionalParticipantIds.includes(p.id))
+      .map((p) => ({ value: p.id, label: p.name })),
+    ...state.extraParticipants.map((name) => ({ value: name, label: `${name} (זמני)` })),
+  ];
 
   return (
     <div className="space-y-4">
@@ -90,7 +99,7 @@ export function DiscussionEditForm({ discussion, state, onChange, isBashiUser }:
         )}
       </div>
 
-      {state.participantIds.length > 0 && (
+      {(state.participantIds.length > 0 || state.extraParticipants.length > 0) && (
         <div>
           <Label>{T.leader}{!isPE && " *"}</Label>
           {isPE ? (

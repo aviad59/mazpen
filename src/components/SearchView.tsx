@@ -79,7 +79,7 @@ export function SearchView({ onOpenDiscussion }: Props) {
         d.notes ?? "",
         d.summary ?? "",
         ...participantStrings,
-        d.leaderId ? lookupParticipant(d.leaderId)?.name ?? "" : "",
+        d.leaderId ? (lookupParticipant(d.leaderId)?.name ?? d.leaderId) : "",
       ]
         .join(" ")
         .toLowerCase();

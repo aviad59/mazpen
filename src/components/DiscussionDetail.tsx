@@ -122,7 +122,10 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   const editIsValid =
     edit.name.trim().length > 0 &&
     edit.participantIds.length > 0 &&
-    (editIsPE || (!!edit.leaderId && edit.participantIds.includes(edit.leaderId)));
+    (editIsPE || (
+      !!edit.leaderId &&
+      (edit.participantIds.includes(edit.leaderId) || edit.extraParticipants.includes(edit.leaderId))
+    ));
 
   async function persistEdits() {
     if (!d || !editIsValid) return;
@@ -226,6 +229,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   );
 
   const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+  const leaderName = d.leaderId ? (leader?.name ?? d.leaderId) : undefined;
   const externalUnitsList = Array.from(
     new Set(d.participantIds.map((id) => lookupParticipant(id)?.unit).filter((u): u is string => !!u && u !== HOME_UNIT))
   );
@@ -252,11 +256,11 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
               <span className="font-medium">{d.durationMinutes} דקות</span>
             </div>
           )}
-          {leader && (
+          {leaderName && (
             <div className="mt-2 flex items-center gap-2 text-sm">
               <Sparkles size={14} className="text-muted-foreground" />
               <span className="text-muted-foreground">מוביל:</span>
-              <span className="font-medium">{leader.name}</span>
+              <span className="font-medium">{leaderName}</span>
             </div>
           )}
           {externalUnitsList.length > 0 && (
@@ -335,6 +339,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate flex items-center gap-1.5">
                         <span className="truncate">{name}</span>
+                        {name === d.leaderId && <Badge tone="accent">מוביל</Badge>}
                         <Badge tone="muted">זמני</Badge>
                       </div>
                     </div>

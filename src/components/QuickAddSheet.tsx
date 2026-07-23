@@ -63,12 +63,18 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   // Auto-select leader when participants change — exclude per-discussion optional
   React.useEffect(() => {
-    if (isPE || participantIds.length === 0) return;
-    const eligibleIds = participantIds.filter((id) => !optionalParticipantIds.includes(id));
-    if (!leaderId || !eligibleIds.includes(leaderId)) {
-      setLeaderId(eligibleIds[0] ?? participantIds[0]);
+    if (isPE) return;
+    if (participantIds.length > 0) {
+      const eligibleIds = participantIds.filter((id) => !optionalParticipantIds.includes(id));
+      if (!leaderId || !eligibleIds.includes(leaderId)) {
+        setLeaderId(eligibleIds[0] ?? participantIds[0]);
+      }
+    } else if (extraParticipants.length > 0) {
+      if (!leaderId || !extraParticipants.includes(leaderId)) {
+        setLeaderId(extraParticipants[0]);
+      }
     }
-  }, [isPE, participantIds, optionalParticipantIds, leaderId]);
+  }, [isPE, participantIds, optionalParticipantIds, extraParticipants, leaderId]);
 
   const effectiveLeaderId = isPE ? "" : leaderId;
   const effectiveRequiresSummary = isPE ? false : requiresSummary;
@@ -76,7 +82,9 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
 
   const hasParticipants = participantIds.length > 0 || extraParticipants.length > 0;
   const hasLeader =
-    participantIds.length === 0 || (!!effectiveLeaderId && participantIds.includes(effectiveLeaderId));
+    !hasParticipants ||
+    (!!effectiveLeaderId &&
+      (participantIds.includes(effectiveLeaderId) || extraParticipants.includes(effectiveLeaderId)));
   const canSubmit = !!name.trim() && (isPE || hasLeader) && !submitting;
 
   const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
@@ -116,10 +124,13 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
     }
   }
 
-  const leaderOptions = participantIds
-    .map((id) => participants.find((p) => p.id === id))
-    .filter((p): p is NonNullable<typeof p> => !!p && !optionalParticipantIds.includes(p.id))
-    .map((p) => ({ value: p.id, label: p.name }));
+  const leaderOptions = [
+    ...participantIds
+      .map((id) => participants.find((p) => p.id === id))
+      .filter((p): p is NonNullable<typeof p> => !!p && !optionalParticipantIds.includes(p.id))
+      .map((p) => ({ value: p.id, label: p.name })),
+    ...extraParticipants.map((name) => ({ value: name, label: `${name} (זמני)` })),
+  ];
 
   return (
     <Sheet
@@ -181,7 +192,7 @@ export function QuickAddSheet({ open, onClose, onCreated, template }: Props) {
           )}
         </div>
 
-        {participantIds.length > 0 && (
+        {(participantIds.length > 0 || extraParticipants.length > 0) && (
           <div>
             <Label>{T.leader}{!isPE && " *"}</Label>
             {isPE ? (

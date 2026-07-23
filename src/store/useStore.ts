@@ -185,8 +185,8 @@ export type CreateDiscussionInput = {
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
   const isPE = isPEDiscussion(input.name);
-  if (!isPE && !input.leaderId) throw new Error("חובה לבחור מוביל לדיון");
-  if (input.leaderId && !input.participantIds.includes(input.leaderId)) throw new Error("המוביל חייב להיות אחד מהמשתתפים");
+  if (!isPE && input.participantIds.length > 0 && !input.leaderId) throw new Error("חובה לבחור מוביל לדיון");
+  if (input.leaderId && !input.participantIds.includes(input.leaderId) && !input.extraParticipants?.includes(input.leaderId)) throw new Error("המוביל חייב להיות אחד מהמשתתפים");
   const nowIso = new Date().toISOString();
   const resolvedWindow = input.dateWindow ?? "this_week";
   const d: Discussion = {
