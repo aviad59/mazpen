@@ -82,6 +82,22 @@ export interface HistoryEvent {
   meta?: Record<string, unknown>;
 }
 
+export interface Profile {
+  id: string;
+  displayName: string;
+  email?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  responsibleId?: string;
+  done: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Discussion {
   id: string;
   name: string;

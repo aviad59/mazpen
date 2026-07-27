@@ -136,6 +136,55 @@ create policy "own push subscriptions"
 -- (service_role bypasses RLS by default — no extra policy needed)
 
 -- ------------------------------------------------------------
+-- Profiles (populated on each login so the user picker stays fresh)
+-- ------------------------------------------------------------
+create table if not exists public.profiles (
+  id           uuid primary key references auth.users(id) on delete cascade,
+  display_name text not null,
+  email        text,
+  updated_at   timestamptz not null default now()
+);
+
+alter table public.profiles enable row level security;
+
+create policy "auth read profiles"
+  on public.profiles for select
+  to authenticated
+  using (true);
+
+create policy "own profile write"
+  on public.profiles for all
+  to authenticated
+  using (id = auth.uid())
+  with check (id = auth.uid());
+
+-- ------------------------------------------------------------
+-- Tasks
+-- ------------------------------------------------------------
+create table if not exists public.tasks (
+  id               text primary key,
+  title            text not null,
+  description      text,
+  responsible_id   uuid references public.profiles(id) on delete set null,
+  done             boolean not null default false,
+  created_at       timestamptz not null,
+  updated_at       timestamptz not null
+);
+
+alter table public.tasks enable row level security;
+
+create policy "auth read tasks"
+  on public.tasks for select
+  to authenticated
+  using (true);
+
+create policy "auth write tasks"
+  on public.tasks for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- ------------------------------------------------------------
 -- Migrations
 -- ------------------------------------------------------------
 alter table public.discussions add column if not exists extra_participants text[];

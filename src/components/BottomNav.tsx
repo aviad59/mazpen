@@ -1,9 +1,9 @@
 import * as React from "react";
-import { LayoutDashboard, Plus, Search, Archive } from "lucide-react";
+import { LayoutDashboard, Plus, Search, Archive, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { T } from "@/lib/he";
 
-export type Tab = "dashboard" | "search" | "archive";
+export type Tab = "dashboard" | "search" | "archive" | "tasks";
 
 interface Props {
   tab: Tab;
@@ -14,7 +14,7 @@ interface Props {
 export function BottomNav({ tab, onChange, onAdd }: Props) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 glass border-t border-border safe-bottom">
-      <div className="mx-auto max-w-xl grid grid-cols-4 items-center">
+      <div className="mx-auto max-w-xl grid grid-cols-5 items-center">
         <TabButton
           active={tab === "dashboard"}
           onClick={() => onChange("dashboard")}
@@ -37,6 +37,12 @@ export function BottomNav({ tab, onChange, onAdd }: Props) {
             <Plus size={26} />
           </button>
         </div>
+        <TabButton
+          active={tab === "tasks"}
+          onClick={() => onChange("tasks")}
+          icon={<ClipboardList size={20} />}
+          label={T.tabs.tasks}
+        />
         <TabButton
           active={tab === "archive"}
           onClick={() => onChange("archive")}

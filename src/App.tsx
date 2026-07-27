@@ -13,7 +13,10 @@ import { LoginScreen } from "./components/LoginScreen";
 import { IOSInstallBanner } from "./components/IOSInstallBanner";
 import { EnableNotificationsBanner } from "./components/EnableNotificationsBanner";
 import { BashiReviewAlert } from "./components/BashiReviewAlert";
+import { TasksView } from "./components/TasksView";
 import { useStore, setCurrentUserName } from "./store/useStore";
+import { loadTaskData } from "./store/useTaskStore";
+import { upsertProfile } from "./lib/tasksDb";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
 import type { Discussion } from "./types";
@@ -47,10 +50,14 @@ export default function App() {
   const [openId, setOpenId] = React.useState<string | null>(() => getAndClearSharedId());
   const [template, setTemplate] = React.useState<Partial<Discussion> | null>(null);
 
-  // Keep store stamping in sync with auth user
+  // Keep store stamping in sync with auth user; upsert profile and load tasks
   React.useEffect(() => {
     const name = user?.user_metadata?.full_name ?? user?.email ?? "";
     setCurrentUserName(name);
+    if (user) {
+      upsertProfile({ id: user.id, displayName: name, email: user.email }).catch(() => {});
+      loadTaskData();
+    }
   }, [user]);
 
   const bashiPending = discussions.filter((d) => d.requiresBashiReview);
@@ -136,6 +143,7 @@ export default function App() {
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {tab === "search" && <SearchView onOpenDiscussion={setOpenId} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
+        {tab === "tasks" && <TasksView />}
       </main>
 
       <BottomNav

@@ -126,5 +126,6 @@ export const T = {
     search: "חיפוש",
     add: "הוסף",
     archive: "ארכיון",
+    tasks: "משימות",
   },
 };
