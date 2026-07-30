@@ -3,7 +3,7 @@ import { Check, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "./ui/Card";
 import { TaskSheet } from "./TaskSheet";
-import { useTaskStore, createTask, updateTask, removeTask } from "@/store/useTaskStore";
+import { useTaskStore, createTask, updateTask, removeTask, refreshProfiles } from "@/store/useTaskStore";
 import type { Task } from "@/types";
 
 interface Props {
@@ -17,6 +17,9 @@ export function TasksView({ addOpen = false, onAddClose }: Props) {
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
   const sheetOpen = addOpen || editOpen;
+
+  // Re-fetch profiles each time the tab is opened so newly-logged-in users appear
+  React.useEffect(() => { refreshProfiles(); }, []);
 
   // When the nav + button opens the sheet, make sure we're in "new task" mode
   React.useEffect(() => {

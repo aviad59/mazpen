@@ -32,6 +32,12 @@ export async function loadTaskData() {
   return loadPromise;
 }
 
+export async function refreshProfiles() {
+  listProfiles()
+    .then((profiles) => setState({ profiles }))
+    .catch(() => {});
+}
+
 export async function createTask(input: { title: string; description?: string; responsibleId?: string }) {
   const now = new Date().toISOString();
   const t: Task = {
