@@ -1,27 +1,40 @@
 import * as React from "react";
-import { Plus, Check, User } from "lucide-react";
+import { Check, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "./ui/Card";
 import { TaskSheet } from "./TaskSheet";
 import { useTaskStore, createTask, updateTask, removeTask } from "@/store/useTaskStore";
 import type { Task } from "@/types";
 
-export function TasksView() {
+interface Props {
+  addOpen?: boolean;
+  onAddClose?: () => void;
+}
+
+export function TasksView({ addOpen = false, onAddClose }: Props) {
   const { tasks, profiles, loading } = useTaskStore();
-  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
+
+  const sheetOpen = addOpen || editOpen;
+
+  // When the nav + button opens the sheet, make sure we're in "new task" mode
+  React.useEffect(() => {
+    if (addOpen) setEditingTask(null);
+  }, [addOpen]);
 
   const open = tasks.filter((t) => !t.done);
   const done = tasks.filter((t) => t.done);
 
-  function openNew() {
-    setEditingTask(null);
-    setSheetOpen(true);
-  }
-
   function openEdit(t: Task) {
     setEditingTask(t);
-    setSheetOpen(true);
+    setEditOpen(true);
+  }
+
+  function closeSheet() {
+    setEditOpen(false);
+    setEditingTask(null);
+    onAddClose?.();
   }
 
   async function handleSave(data: { title: string; description?: string; responsibleId?: string }) {
@@ -35,7 +48,7 @@ export function TasksView() {
   async function handleDelete() {
     if (!editingTask) return;
     await removeTask(editingTask.id);
-    setSheetOpen(false);
+    closeSheet();
   }
 
   async function handleToggle(id: string, currentDone: boolean) {
@@ -93,18 +106,9 @@ export function TasksView() {
         )}
       </div>
 
-      {/* Floating add button */}
-      <button
-        onClick={openNew}
-        className="fixed bottom-20 left-1/2 -translate-x-1/2 h-13 w-13 rounded-full bg-accent text-accent-foreground shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center z-20"
-        aria-label="משימה חדשה"
-      >
-        <Plus size={24} />
-      </button>
-
       <TaskSheet
         open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
+        onClose={closeSheet}
         profiles={profiles}
         task={editingTask}
         onSave={handleSave}

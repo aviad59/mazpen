@@ -44,6 +44,7 @@ export default function App() {
   const isBashiUser = user?.user_metadata?.full_name === "רותם בשי";
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [addTaskOpen, setAddTaskOpen] = React.useState(false);
   const [bashiAlertOpen, setBashiAlertOpen] = React.useState(true);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
   const [notificationSettingsOpen, setNotificationSettingsOpen] = React.useState(false);
@@ -143,15 +144,19 @@ export default function App() {
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {tab === "search" && <SearchView onOpenDiscussion={setOpenId} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
-        {tab === "tasks" && <TasksView />}
+        {tab === "tasks" && <TasksView addOpen={addTaskOpen} onAddClose={() => setAddTaskOpen(false)} />}
       </main>
 
       <BottomNav
         tab={tab}
         onChange={setTab}
         onAdd={() => {
-          setTemplate(null);
-          setAddOpen(true);
+          if (tab === "tasks") {
+            setAddTaskOpen(true);
+          } else {
+            setTemplate(null);
+            setAddOpen(true);
+          }
         }}
       />
 
