@@ -189,3 +189,4 @@ create policy "auth write tasks"
 -- ------------------------------------------------------------
 alter table public.discussions add column if not exists extra_participants text[];
 alter table public.discussions add column if not exists optional_participant_ids text[];
+alter table public.discussions add column if not exists cycles jsonb not null default '[]'::jsonb;

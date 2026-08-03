@@ -7,6 +7,7 @@ import { useSyncExternalStore, useCallback, useMemo } from "react";
 import type {
   DateWindow,
   Discussion,
+  DiscussionCycle,
   DiscussionStatus,
   HistoryEvent,
   HistoryKind,
@@ -248,13 +249,52 @@ async function updateDiscussion(
 async function changeStatus(id: string, to: DiscussionStatus, by?: string) {
   const current = state.discussions.find((d) => d.id === id);
   if (!current) return;
-  await upsert(
-    { ...current, status: to },
-    buildEvent("status_changed", `סטטוס: ${statusLabelFor(current.status)} ← ${statusLabelFor(to)}`, { from: current.status, to, by })
-  );
 
-  // Debounced — rapid status flips (or a flip immediately followed by a
-  // delete) collapse into at most one push, reflecting the final status.
+  const isCycleTerminal =
+    current.recurrence !== "none" &&
+    (to === "distributed" || (to === "occurred" && !current.requiresSummary));
+
+  if (isCycleTerminal) {
+    // Archive the current cycle and open a fresh one
+    const nowIso = new Date().toISOString();
+    const cycleNumber = (current.cycles?.length ?? 0) + 1;
+    const completedCycle: DiscussionCycle = {
+      id: uid("cyc-"),
+      number: cycleNumber,
+      status: to,
+      dateWindow: current.dateWindow,
+      scheduledWeek: current.scheduledWeek,
+      summary: current.summary,
+      history: [
+        ...current.history,
+        buildEvent("status_changed", `סטטוס: ${statusLabelFor(current.status)} ← ${statusLabelFor(to)}`, { from: current.status, to, by }),
+      ],
+      createdAt: current.createdAt,
+      closedAt: nowIso,
+    };
+    const nextNumber = cycleNumber + 1;
+    const next: Discussion = {
+      ...current,
+      status: "new",
+      dateWindow: "this_week",
+      scheduledWeek: scheduledWeekForWindow("this_week"),
+      summary: undefined,
+      cycles: [...(current.cycles ?? []), completedCycle],
+      history: [{ id: uid("h-"), kind: "created", at: nowIso, text: `מחזור ${nextNumber} נפתח`, by: currentUserName || undefined }],
+      updatedAt: nowIso,
+    };
+    await dbPut(next);
+    setState((p) => ({
+      ...p,
+      discussions: p.discussions.map((d) => (d.id === next.id ? next : d)),
+    }));
+  } else {
+    await upsert(
+      { ...current, status: to },
+      buildEvent("status_changed", `סטטוס: ${statusLabelFor(current.status)} ← ${statusLabelFor(to)}`, { from: current.status, to, by })
+    );
+  }
+
   if (getNotificationSettings().notifyStatusChange) {
     scheduleNotification(`status:${id}`, () => {
       supabase.auth.getUser().then(({ data: { user } }) => {

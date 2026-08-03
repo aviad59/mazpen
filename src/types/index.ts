@@ -82,6 +82,18 @@ export interface HistoryEvent {
   meta?: Record<string, unknown>;
 }
 
+export interface DiscussionCycle {
+  id: string;
+  number: number;
+  status: DiscussionStatus;
+  dateWindow: DateWindow;
+  scheduledWeek?: string;
+  summary?: string;
+  history: HistoryEvent[];
+  createdAt: string;
+  closedAt: string;
+}
+
 export interface Profile {
   id: string;
   displayName: string;
@@ -142,6 +154,7 @@ export interface Discussion {
   summary?: string;
   /** Prefer scheduling this discussion during driving/commute time. */
   drivingTimePreference?: boolean;
+  cycles?: DiscussionCycle[];
   history: HistoryEvent[];
   createdAt: string;
   updatedAt: string;

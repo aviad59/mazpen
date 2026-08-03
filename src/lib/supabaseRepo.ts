@@ -8,6 +8,7 @@ import { supabase as sharedClient } from "./supabaseClient";
 import type {
   DateWindow,
   Discussion,
+  DiscussionCycle,
   HistoryEvent,
   Participant,
   ParticipantGroup,
@@ -36,6 +37,7 @@ interface DiscussionRow {
   notes: string | null;
   summary: string | null;
   driving_time_preference: boolean | null;
+  cycles: DiscussionCycle[];
   history: HistoryEvent[];
   created_at: string;
   updated_at: string;
@@ -85,6 +87,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     notes: r.notes ?? undefined,
     summary: r.summary ?? undefined,
     drivingTimePreference: r.driving_time_preference ?? false,
+    cycles: r.cycles?.length ? r.cycles : undefined,
     history: r.history ?? [],
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -110,6 +113,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     notes: d.notes ?? null,
     summary: d.summary ?? null,
     driving_time_preference: d.drivingTimePreference ?? false,
+    cycles: d.cycles ?? [],
     history: d.history,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
@@ -158,7 +162,7 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
       const { data, error } = await client
         .from("discussions")
         .select(
-          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,optional_participant_ids,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,history,created_at,updated_at"
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,optional_participant_ids,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,cycles,history,created_at,updated_at"
         )
         .limit(5000);
       if (error) throw error;

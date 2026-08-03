@@ -27,9 +27,10 @@ import { StatusBadge } from "./StatusBadge";
 import { DiscussionEditForm, type EditState } from "./DiscussionEditForm";
 import { useStore } from "@/store/useStore";
 import { HOME_UNIT, isPEDiscussion, RECURRENCE_LABEL, STATUS_LABEL, T, WINDOW_LABEL } from "@/lib/he";
+import { RefreshCw } from "lucide-react";
 import { describeChanges } from "@/lib/historyDiff";
 import { cn } from "@/lib/utils";
-import type { Discussion, DiscussionStatus } from "@/types";
+import type { Discussion, DiscussionCycle, DiscussionStatus } from "@/types";
 
 interface Props {
   open: boolean;
@@ -242,6 +243,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
           {d.requiresSummary && <Badge tone="muted">דורש סיכום + הפצה</Badge>}
           {d.requiresSubstrate && <Badge tone="muted"><FileStack size={10} />דורש מצע</Badge>}
           {d.recurrence !== "none" && <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>}
+          {d.recurrence !== "none" && <Badge tone="muted">מחזור {(d.cycles?.length ?? 0) + 1}</Badge>}
         </div>
 
         <Card className="p-4">
@@ -368,6 +370,17 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
           </Card>
         )}
 
+        {!editing && d.cycles && d.cycles.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground px-1 mb-2">מחזורים קודמים ({d.cycles.length})</h3>
+            <div className="space-y-2">
+              {[...d.cycles].reverse().map((cycle) => (
+                <PastCycleCard key={cycle.id} cycle={cycle} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {!editing && (
           <Card className="p-4">
             <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3"><Clock size={14} /> {T.history}</h3>
@@ -380,5 +393,38 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
         )}
       </div>
     </Sheet>
+  );
+}
+
+function PastCycleCard({ cycle }: { cycle: DiscussionCycle }) {
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <Card className="overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-2 p-3 text-right hover:bg-muted/30 transition-colors"
+      >
+        <RefreshCw size={13} className="text-muted-foreground shrink-0" />
+        <span className="text-xs text-muted-foreground shrink-0">מחזור {cycle.number}</span>
+        <div className="flex-1" />
+        <StatusBadge status={cycle.status} />
+        <span className="text-xs text-muted-foreground">{WINDOW_LABEL[cycle.dateWindow]}</span>
+        <ChevronLeft size={14} className={cn("text-muted-foreground transition-transform shrink-0", expanded && "-rotate-90")} />
+      </button>
+      {expanded && (
+        <div className="border-t border-border p-3 space-y-3">
+          {cycle.summary && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">סיכום</p>
+              <p className="text-sm whitespace-pre-wrap">{cycle.summary}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-2">היסטוריה</p>
+            <ActivityTimeline history={cycle.history} />
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
