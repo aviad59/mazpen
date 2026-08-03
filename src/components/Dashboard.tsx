@@ -62,16 +62,18 @@ interface KanbanColumnProps {
   emptyTitle: string;
   emptyIcon: React.ReactNode;
   children: React.ReactNode;
+  bodyProps?: React.HTMLAttributes<HTMLDivElement>;
+  isDragOver?: boolean;
 }
 
-function KanbanColumn({ label, count, headerClass, borderClass, emptyTitle, emptyIcon, children }: KanbanColumnProps) {
+function KanbanColumn({ label, count, headerClass, borderClass, emptyTitle, emptyIcon, children, bodyProps, isDragOver }: KanbanColumnProps) {
   return (
-    <div className={cn("flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border-2 overflow-hidden", borderClass)}>
+    <div className={cn("flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border-2 overflow-hidden transition-colors", borderClass, isDragOver && "border-accent/60")}>
       <div className={cn("flex items-center justify-between px-4 py-2.5 shrink-0", headerClass)}>
         <span className="text-sm font-bold tracking-wide">{label}</span>
         <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5">{count}</span>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 bg-background">
+      <div className={cn("flex-1 overflow-y-auto p-3 bg-background transition-colors", isDragOver && "bg-accent/5")} {...bodyProps}>
         {count === 0 ? (
           <div className="flex items-center justify-center h-32">
             <EmptyState icon={emptyIcon} title={emptyTitle} className="py-2" />
@@ -145,7 +147,7 @@ function bucketize(discussions: Discussion[]): Buckets {
 // ---- Main component ------------------------------------------------------
 
 export function Dashboard({ onOpenDiscussion }: Props) {
-  const { discussions, lookupParticipant, loaded, isNewDiscussion } = useStore();
+  const { discussions, lookupParticipant, loaded, isNewDiscussion, changeStatus, setDateWindow } = useStore();
   const buckets = React.useMemo(() => bucketize(discussions), [discussions]);
   const [collapsed, setCollapsed] = React.useState<Partial<Record<DashboardSection, boolean>>>({});
   const [phaseCollapsed, setPhaseCollapsed] = React.useState<Record<string, boolean>>({});
@@ -153,6 +155,51 @@ export function Dashboard({ onOpenDiscussion }: Props) {
     setCollapsed((prev) => ({ ...prev, [w]: !prev[w] }));
   const togglePhase = (key: string) =>
     setPhaseCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // ── Drag-and-drop state (desktop only) ────────────────────────────────────
+  const [draggedId, setDraggedId] = React.useState<string | null>(null);
+  const [dragOver, setDragOver] = React.useState<string | null>(null);
+
+  function onCardDragStart(e: React.DragEvent, id: string) {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggedId(id);
+  }
+
+  function onCardDragEnd() {
+    setDraggedId(null);
+    setDragOver(null);
+  }
+
+  function dropSectionProps(window: string) {
+    return {
+      onDragOver(e: React.DragEvent) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(`s:${window}`); },
+      onDragLeave(e: React.DragEvent) { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null); },
+      onDrop(e: React.DragEvent) {
+        e.preventDefault();
+        const id = e.dataTransfer.getData("text/plain");
+        if (!id) return;
+        const d = discussions.find((x) => x.id === id);
+        if (!d) return;
+        if (d.status !== "new") changeStatus(id, "new");
+        if (d.dateWindow !== window) setDateWindow(id, window as import("@/types").DateWindow);
+        setDragOver(null); setDraggedId(null);
+      },
+    };
+  }
+
+  function dropColumnProps(targetKey: string, onDrop: (id: string) => void) {
+    return {
+      onDragOver(e: React.DragEvent) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(targetKey); },
+      onDragLeave(e: React.DragEvent) { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(null); },
+      onDrop(e: React.DragEvent) {
+        e.preventDefault();
+        const id = e.dataTransfer.getData("text/plain");
+        if (id) onDrop(id);
+        setDragOver(null); setDraggedId(null);
+      },
+    };
+  }
 
   if (!loaded) {
     return (
@@ -181,7 +228,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
     <>
       {/* ── Desktop Kanban (md+) ─────────────────────────────────────── */}
       <div className="hidden lg:flex gap-3 px-4 pb-4 pt-3 h-full min-h-0">
-        {/* Column 1: בתכנון */}
+        {/* Column 1: בתכנון — section-level drop zones */}
         <KanbanColumn
           label="בתכנון"
           count={planningCount}
@@ -193,35 +240,50 @@ export function Dashboard({ onOpenDiscussion }: Props) {
           <div className="space-y-3">
             {PLANNING_WINDOWS.map((w) => {
               const items = buckets.planning[w];
-              if (items.length === 0) return null;
+              const isOver = dragOver === `s:${w}`;
               const dateHint = sectionDateRange(w);
               return (
-                <section key={w}>
+                <section
+                  key={w}
+                  {...dropSectionProps(w)}
+                  className={cn("rounded-lg p-1 -m-1 transition-colors", isOver && "bg-accent/10 ring-1 ring-accent/40")}
+                >
                   <div className="flex items-baseline justify-between mb-1.5 px-0.5">
                     <span className="text-xs font-semibold text-foreground/70">{SECTION_LABEL[w]}</span>
                     {dateHint && (
                       <span className="text-[10px] text-muted-foreground/60">{dateHint}</span>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {items.map((d) => (
-                      <DiscussionCard
-                        key={d.id}
-                        discussion={d}
-                        lookupParticipant={lookupParticipant}
-                        onOpen={onOpenDiscussion}
-                        isNew={isNewDiscussion(d.id)}
-                        compact
-                      />
-                    ))}
-                  </div>
+                  {items.length === 0 ? (
+                    <div className={cn("h-10 rounded border-2 border-dashed border-transparent transition-colors", isOver && "border-accent/30")} />
+                  ) : (
+                    <div className="space-y-2">
+                      {items.map((d) => (
+                        <div
+                          key={d.id}
+                          draggable
+                          onDragStart={(e) => onCardDragStart(e, d.id)}
+                          onDragEnd={onCardDragEnd}
+                          className={cn("cursor-grab active:cursor-grabbing transition-opacity", draggedId === d.id && "opacity-40")}
+                        >
+                          <DiscussionCard
+                            discussion={d}
+                            lookupParticipant={lookupParticipant}
+                            onOpen={onOpenDiscussion}
+                            isNew={isNewDiscussion(d.id)}
+                            compact
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
               );
             })}
           </div>
         </KanbanColumn>
 
-        {/* Column 2: תואם */}
+        {/* Column 2: תואם — column-body drop zone */}
         <KanbanColumn
           label="תואם"
           count={buckets.coordinated.length}
@@ -229,23 +291,35 @@ export function Dashboard({ onOpenDiscussion }: Props) {
           borderClass="border-teal-200 dark:border-teal-800"
           emptyTitle="אין דיונים תואמים"
           emptyIcon={<CalendarRange size={32} />}
+          isDragOver={dragOver === "col-2"}
+          bodyProps={dropColumnProps("col-2", (id) => {
+            const d = discussions.find((x) => x.id === id);
+            if (d && d.status !== "coordinated") changeStatus(id, "coordinated");
+          })}
         >
           <div className="space-y-2">
             {buckets.coordinated.map((d) => (
-              <DiscussionCard
+              <div
                 key={d.id}
-                discussion={d}
-                lookupParticipant={lookupParticipant}
-                onOpen={onOpenDiscussion}
-                isNew={isNewDiscussion(d.id)}
-                hideWindow
-                compact
-              />
+                draggable
+                onDragStart={(e) => onCardDragStart(e, d.id)}
+                onDragEnd={onCardDragEnd}
+                className={cn("cursor-grab active:cursor-grabbing transition-opacity", draggedId === d.id && "opacity-40")}
+              >
+                <DiscussionCard
+                  discussion={d}
+                  lookupParticipant={lookupParticipant}
+                  onOpen={onOpenDiscussion}
+                  isNew={isNewDiscussion(d.id)}
+                  hideWindow
+                  compact
+                />
+              </div>
             ))}
           </div>
         </KanbanColumn>
 
-        {/* Column 3: ממתין לסיכום */}
+        {/* Column 3: ממתין לסיכום — column-body drop zone */}
         <KanbanColumn
           label="ממתין לסיכום"
           count={buckets.summary.length}
@@ -253,17 +327,29 @@ export function Dashboard({ onOpenDiscussion }: Props) {
           borderClass="border-amber-200 dark:border-amber-800"
           emptyTitle={T.empty.waiting_summary}
           emptyIcon={<Clock size={32} />}
+          isDragOver={dragOver === "col-3"}
+          bodyProps={dropColumnProps("col-3", (id) => {
+            const d = discussions.find((x) => x.id === id);
+            if (d && d.status === "coordinated" && d.requiresSummary) changeStatus(id, "waiting_summary");
+          })}
         >
           <div className="space-y-2">
             {buckets.summary.map((d) => (
-              <DiscussionCard
+              <div
                 key={d.id}
-                discussion={d}
-                lookupParticipant={lookupParticipant}
-                onOpen={onOpenDiscussion}
-                isNew={isNewDiscussion(d.id)}
-                compact
-              />
+                draggable
+                onDragStart={(e) => onCardDragStart(e, d.id)}
+                onDragEnd={onCardDragEnd}
+                className={cn("cursor-grab active:cursor-grabbing transition-opacity", draggedId === d.id && "opacity-40")}
+              >
+                <DiscussionCard
+                  discussion={d}
+                  lookupParticipant={lookupParticipant}
+                  onOpen={onOpenDiscussion}
+                  isNew={isNewDiscussion(d.id)}
+                  compact
+                />
+              </div>
             ))}
           </div>
         </KanbanColumn>

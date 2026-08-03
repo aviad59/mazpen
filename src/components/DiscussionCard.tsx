@@ -154,6 +154,9 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         {d.recurrence !== "none" && (
           <Badge tone="accent">{RECURRENCE_LABEL[d.recurrence]}</Badge>
         )}
+        {d.recurrence !== "none" && (d.cycles?.length ?? 0) > 0 && (
+          <Badge tone="muted">מחזור {(d.cycles?.length ?? 0) + 1}</Badge>
+        )}
         {d.drivingTimePreference && (
           <Badge tone="muted" className="gap-1 px-1.5">
             <DrivingTimeIcon size={16} />
