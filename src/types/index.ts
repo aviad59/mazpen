@@ -110,6 +110,19 @@ export interface Task {
   updatedAt: string;
 }
 
+export type RequestStatus = "pending" | "approved" | "rejected";
+
+export interface DiscussionRequest {
+  id: string;
+  title: string;
+  requesterName: string;
+  notes?: string;
+  participantIds: string[];
+  status: RequestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Discussion {
   id: string;
   name: string;

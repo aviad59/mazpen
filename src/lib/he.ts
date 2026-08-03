@@ -127,5 +127,6 @@ export const T = {
     add: "הוסף",
     archive: "ארכיון",
     tasks: "משימות",
+    inbox: "בקשות",
   },
 };

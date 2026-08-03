@@ -190,3 +190,38 @@ create policy "auth write tasks"
 alter table public.discussions add column if not exists extra_participants text[];
 alter table public.discussions add column if not exists optional_participant_ids text[];
 alter table public.discussions add column if not exists cycles jsonb not null default '[]'::jsonb;
+
+-- ------------------------------------------------------------
+-- Discussion Requests (public form submissions)
+-- ------------------------------------------------------------
+create table if not exists public.discussion_requests (
+  id               text primary key,
+  title            text not null,
+  requester_name   text not null,
+  notes            text,
+  participant_ids  text[] not null default array[]::text[],
+  status           text not null default 'pending',
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
+alter table public.discussion_requests enable row level security;
+
+-- Anyone (unauthenticated) can submit a request
+create policy "anon insert requests"
+  on public.discussion_requests for insert
+  to anon
+  with check (true);
+
+-- Authenticated users can read, update, delete requests
+create policy "auth manage requests"
+  on public.discussion_requests for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- Allow anon users to read participants (needed for the public request form)
+create policy "anon read participants"
+  on public.participants for select
+  to anon
+  using (true);

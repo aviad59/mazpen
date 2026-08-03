@@ -2,6 +2,7 @@ import * as React from "react";
 import { Dashboard } from "./components/Dashboard";
 import { SearchView } from "./components/SearchView";
 import { ArchiveView } from "./components/ArchiveView";
+import { InboxView } from "./components/InboxView";
 import { TopBar } from "./components/TopBar";
 import { BottomNav, type Tab } from "./components/BottomNav";
 import { QuickAddSheet } from "./components/QuickAddSheet";
@@ -16,6 +17,7 @@ import { BashiReviewAlert } from "./components/BashiReviewAlert";
 import { TasksView } from "./components/TasksView";
 import { useStore, setCurrentUserName } from "./store/useStore";
 import { loadTaskData } from "./store/useTaskStore";
+import { loadRequestData, useRequestStore } from "./store/useRequestStore";
 import { upsertProfile } from "./lib/tasksDb";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
@@ -41,6 +43,8 @@ function getAndClearSharedId(): string | null {
 export default function App() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const { discussions, error, clearAll, reload } = useStore();
+  const { requests } = useRequestStore();
+  const pendingInboxCount = requests.filter((r) => r.status === "pending").length;
   const isBashiUser = user?.user_metadata?.full_name === "רותם בשי";
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
@@ -58,6 +62,7 @@ export default function App() {
     if (user) {
       upsertProfile({ id: user.id, displayName: name, email: user.email }).catch(() => {});
       loadTaskData();
+      loadRequestData();
     }
   }, [user]);
 
@@ -142,7 +147,8 @@ export default function App() {
 
       <main className="flex-1 min-h-0 max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
-        {tab === "search" && <SearchView onOpenDiscussion={setOpenId} />}
+        {(tab as string) === "search" && <SearchView onOpenDiscussion={setOpenId} />}
+        {tab === "inbox" && <InboxView />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
         {tab === "tasks" && <TasksView addOpen={addTaskOpen} onAddClose={() => setAddTaskOpen(false)} />}
       </main>
@@ -150,6 +156,7 @@ export default function App() {
       <BottomNav
         tab={tab}
         onChange={setTab}
+        inboxCount={pendingInboxCount}
         onAdd={() => {
           if (tab === "tasks") {
             setAddTaskOpen(true);
