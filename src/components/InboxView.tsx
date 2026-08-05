@@ -1,15 +1,17 @@
 import * as React from "react";
-import { Inbox, Link, Check, X, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Inbox, Link, Check, X, Clock, CheckCircle2, XCircle, Loader2, Pencil } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { Avatar } from "./ui/Avatar";
 import { EmptyState } from "./ui/EmptyState";
+import { Sheet } from "./ui/Sheet";
+import { Input, Textarea, Label } from "./ui/Input";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { cn } from "@/lib/utils";
-import { useRequestStore, approveRequest, rejectRequest, removeRequest } from "@/store/useRequestStore";
+import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest } from "@/store/useRequestStore";
 import { useStore } from "@/store/useStore";
-import type { DiscussionRequest } from "@/types";
+import type { DiscussionRequest, Participant } from "@/types";
 
 const REQUEST_FORM_PATH = "/request";
 
@@ -29,18 +31,166 @@ function StatusBadgeInbox({ status }: { status: DiscussionRequest["status"] }) {
   return <Badge tone="warning">ממתין</Badge>;
 }
 
+// ---- Edit sheet -----------------------------------------------------------
+
+interface EditSheetProps {
+  open: boolean;
+  onClose: () => void;
+  request: DiscussionRequest | null;
+  participants: Participant[];
+  onSave: (id: string, patch: Partial<Pick<DiscussionRequest, "title" | "requesterName" | "notes" | "participantIds">>) => Promise<void>;
+}
+
+function EditSheet({ open, onClose, request, participants, onSave }: EditSheetProps) {
+  const [title, setTitle] = React.useState("");
+  const [requesterName, setRequesterName] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [search, setSearch] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open || !request) return;
+    setTitle(request.title);
+    setRequesterName(request.requesterName);
+    setNotes(request.notes ?? "");
+    setSelectedIds(request.participantIds);
+    setSearch("");
+  }, [open, request]);
+
+  const filtered = search.trim()
+    ? participants.filter(
+        (p) => p.name.includes(search) || (p.role ?? "").includes(search)
+      )
+    : participants;
+
+  function toggleParticipant(id: string) {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  const canSave = title.trim().length > 0 && requesterName.trim().length > 0 && !saving;
+
+  async function handleSave() {
+    if (!request || !canSave) return;
+    setSaving(true);
+    try {
+      await onSave(request.id, {
+        title: title.trim(),
+        requesterName: requesterName.trim(),
+        notes: notes.trim() || undefined,
+        participantIds: selectedIds,
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!request) return null;
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="עריכת בקשה"
+      footer={
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} className="flex-1">ביטול</Button>
+          <Button type="button" onClick={handleSave} disabled={!canSave} className="flex-[2]">
+            {saving ? "שומר..." : "שמור"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="edit-title">שם הדיון *</Label>
+          <Input
+            id="edit-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div>
+          <Label htmlFor="edit-requester">שם מבקש *</Label>
+          <Input
+            id="edit-requester"
+            value={requesterName}
+            onChange={(e) => setRequesterName(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="edit-notes">הערות</Label>
+          <Textarea
+            id="edit-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+          />
+        </div>
+        <div>
+          <Label>משתתפים</Label>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="חיפוש..."
+            className="mb-2"
+          />
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3">לא נמצאו</p>
+            ) : (
+              filtered.map((p) => {
+                const checked = selectedIds.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleParticipant(p.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 text-right transition-colors",
+                      checked ? "bg-accent/10" : "hover:bg-muted/50"
+                    )}
+                  >
+                    <Avatar name={p.name} size="xs" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      {p.role && <div className="text-xs text-muted-foreground truncate">{p.role}</div>}
+                    </div>
+                    <div className={cn(
+                      "h-4 w-4 rounded border-2 shrink-0 transition-colors",
+                      checked ? "bg-accent border-accent" : "border-muted-foreground/40"
+                    )} />
+                  </button>
+                );
+              })
+            )}
+          </div>
+          {selectedIds.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">{selectedIds.length} נבחרו</p>
+          )}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
+// ---- Request card ---------------------------------------------------------
+
 interface RequestCardProps {
   req: DiscussionRequest;
-  lookupParticipant: (id: string) => import("@/types").Participant | undefined;
+  lookupParticipant: (id: string) => Participant | undefined;
   onApprove: (req: DiscussionRequest) => void;
+  onEdit: (req: DiscussionRequest) => void;
   onReject: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-function RequestCard({ req, lookupParticipant, onApprove, onReject, onDelete }: RequestCardProps) {
-  const participants = req.participantIds
+function RequestCard({ req, lookupParticipant, onApprove, onEdit, onReject, onDelete }: RequestCardProps) {
+  const resolvedParticipants = req.participantIds
     .map((id) => lookupParticipant(id))
-    .filter(Boolean);
+    .filter((p): p is Participant => !!p);
 
   return (
     <Card className="p-4 space-y-3">
@@ -56,16 +206,26 @@ function RequestCard({ req, lookupParticipant, onApprove, onReject, onDelete }: 
             {new Date(req.createdAt).toLocaleDateString("he-IL")}
           </p>
         </div>
-        <StatusBadgeInbox status={req.status} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <StatusBadgeInbox status={req.status} />
+          <button
+            type="button"
+            onClick={() => onEdit(req)}
+            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
+            title="עריכה"
+          >
+            <Pencil size={13} />
+          </button>
+        </div>
       </div>
 
       {req.notes && (
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{req.notes}</p>
       )}
 
-      {participants.length > 0 && (
+      {resolvedParticipants.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {participants.map((p) => p && (
+          {resolvedParticipants.map((p) => (
             <span key={p.id} className="flex items-center gap-1 text-xs bg-muted rounded-full px-2 py-1">
               <Avatar name={p.name} size="xs" />
               {p.name}
@@ -76,12 +236,7 @@ function RequestCard({ req, lookupParticipant, onApprove, onReject, onDelete }: 
 
       {req.status === "pending" && (
         <div className="flex gap-2 pt-1">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => onApprove(req)}
-            className="flex-1 gap-1.5"
-          >
+          <Button type="button" size="sm" onClick={() => onApprove(req)} className="flex-1 gap-1.5">
             <Check size={14} />
             אשר
           </Button>
@@ -113,11 +268,14 @@ function RequestCard({ req, lookupParticipant, onApprove, onReject, onDelete }: 
   );
 }
 
+// ---- Main view ------------------------------------------------------------
+
 export function InboxView() {
   const { requests, loading } = useRequestStore();
   const { participants, lookupParticipant, createDiscussion } = useStore();
   const [copied, setCopied] = React.useState(false);
   const [approvalReq, setApprovalReq] = React.useState<DiscussionRequest | null>(null);
+  const [editReq, setEditReq] = React.useState<DiscussionRequest | null>(null);
   const [filter, setFilter] = React.useState<"pending" | "all">("pending");
 
   const displayed = filter === "pending" ? requests.filter((r) => r.status === "pending") : requests;
@@ -140,12 +298,8 @@ export function InboxView() {
     await approveRequest(req.id);
   }
 
-  async function handleReject(id: string) {
-    await rejectRequest(id);
-  }
-
-  async function handleDelete(id: string) {
-    await removeRequest(id);
+  async function handleEdit(id: string, patch: Partial<Pick<DiscussionRequest, "title" | "requesterName" | "notes" | "participantIds">>) {
+    await updateRequest(id, patch);
   }
 
   return (
@@ -162,9 +316,7 @@ export function InboxView() {
               </span>
             )}
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            בקשות שהוגשו דרך טופס ציבורי
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">בקשות שהוגשו דרך טופס ציבורי</p>
         </div>
         <Button
           type="button"
@@ -226,8 +378,9 @@ export function InboxView() {
               req={req}
               lookupParticipant={lookupParticipant}
               onApprove={setApprovalReq}
-              onReject={handleReject}
-              onDelete={handleDelete}
+              onEdit={setEditReq}
+              onReject={rejectRequest}
+              onDelete={removeRequest}
             />
           ))}
         </div>
@@ -240,6 +393,14 @@ export function InboxView() {
         participants={participants}
         lookupParticipant={lookupParticipant}
         onApprove={handleApprove}
+      />
+
+      <EditSheet
+        open={!!editReq}
+        onClose={() => setEditReq(null)}
+        request={editReq}
+        participants={participants}
+        onSave={handleEdit}
       />
     </div>
   );

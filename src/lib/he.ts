@@ -122,7 +122,7 @@ export const T = {
     distributed: "אין דיונים שהופצו",
   },
   tabs: {
-    dashboard: "לוח מבצעי",
+    dashboard: "לוח",
     search: "חיפוש",
     add: "הוסף",
     archive: "ארכיון",
