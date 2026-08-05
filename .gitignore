@@ -10,3 +10,5 @@ dist-ssr/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+*.tsbuildinfo
+vite.config.js
