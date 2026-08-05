@@ -3,7 +3,7 @@ import { LayoutDashboard, Plus, Inbox, Archive, ClipboardList } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { T } from "@/lib/he";
 
-export type Tab = "dashboard" | "inbox" | "archive" | "tasks";
+export type Tab = "dashboard" | "search" | "inbox" | "archive" | "tasks";
 
 interface Props {
   tab: Tab;
