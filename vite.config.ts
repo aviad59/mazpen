@@ -41,6 +41,14 @@ export default defineConfig({
       filename: "sw.ts",
     }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("index.html", import.meta.url)),
+        request: fileURLToPath(new URL("request.html", import.meta.url)),
+      },
+    },
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
