@@ -1,5 +1,4 @@
-import { Building2, CalendarRange, FileStack } from "lucide-react";
-import { DrivingTimeIcon } from "./ui/DrivingTimeIcon";
+import { Building2, CalendarRange, Car, FileStack } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
@@ -159,7 +158,7 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         )}
         {d.drivingTimePreference && (
           <Badge tone="muted" className="gap-1 px-1.5">
-            <DrivingTimeIcon size={16} />
+            <Car size={13} />
           </Badge>
         )}
         {d.requiresBashiReview && (
