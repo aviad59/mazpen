@@ -140,10 +140,15 @@ function formatError(e: unknown): string {
 
 void load();
 
-// Re-fetch whenever the user signs in or their token refreshes, so the
-// authenticated Supabase session is definitely in place before we query.
-supabase.auth.onAuthStateChange((event) => {
-  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+// Re-fetch whenever auth state is established so the JWT is in place.
+// INITIAL_SESSION covers returning users whose session is restored from
+// localStorage; SIGNED_IN covers fresh logins; TOKEN_REFRESHED covers
+// expired-token renewals.
+supabase.auth.onAuthStateChange((event, session) => {
+  if (
+    (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") &&
+    session
+  ) {
     void load();
   }
 });
