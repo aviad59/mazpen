@@ -95,7 +95,10 @@ function setState(updater: (prev: State) => State) {
   emit();
 }
 
+let loadSeq = 0;
+
 async function load() {
+  const seq = ++loadSeq;
   if (!isBackendConfigured) {
     setState(() => ({
       loaded: false,
@@ -113,9 +116,11 @@ async function load() {
       listParticipants(),
     ]);
     const groups = await listGroups().catch(() => []);
+    if (seq !== loadSeq) return; // a newer load() supersedes this one
     initSessionTracking(discussions.map((d) => d.id));
     setState(() => ({ loaded: true, error: null, discussions, participants, groups }));
   } catch (e) {
+    if (seq !== loadSeq) return;
     setState((p) => ({ ...p, loaded: false, error: formatError(e) }));
   }
 }
