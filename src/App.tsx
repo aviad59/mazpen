@@ -62,6 +62,7 @@ export default function App() {
     setCurrentUserName(name);
     if (user) {
       upsertProfile({ id: user.id, displayName: name, email: user.email }).catch(() => {});
+      reload();
       loadTaskData();
       loadRequestData();
     }
