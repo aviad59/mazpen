@@ -140,6 +140,14 @@ function formatError(e: unknown): string {
 
 void load();
 
+// Re-fetch whenever the user signs in or their token refreshes, so the
+// authenticated Supabase session is definitely in place before we query.
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+    void load();
+  }
+});
+
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
