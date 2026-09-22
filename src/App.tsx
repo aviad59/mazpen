@@ -21,6 +21,7 @@ import { loadRequestData, useRequestStore } from "./store/useRequestStore";
 import { upsertProfile } from "./lib/tasksDb";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
+import { isEmailAllowed } from "./lib/allowedEmails";
 import type { Discussion } from "./types";
 
 /** Read ?id= from the URL once on mount, then clean the param. */
@@ -96,6 +97,25 @@ export default function App() {
   // Not logged in
   if (user === null) {
     return <LoginScreen onSignIn={signInWithGoogle} />;
+  }
+
+  // Signed in but not on the allowlist
+  if (!isEmailAllowed(user.email)) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="text-4xl">🔒</div>
+        <h1 className="text-lg font-bold text-foreground">אין גישה</h1>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          הכתובת <span className="font-medium text-foreground">{user.email}</span> אינה מורשית להשתמש במערכת.
+        </p>
+        <button
+          onClick={signOut}
+          className="mt-2 text-sm text-accent underline underline-offset-2"
+        >
+          התנתק
+        </button>
+      </div>
+    );
   }
 
   if (error) {
