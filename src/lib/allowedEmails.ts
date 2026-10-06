@@ -1,15 +1,11 @@
-/**
- * Allowed user emails. Add new emails here to grant access.
- * Comparison is case-insensitive.
- */
-export const ALLOWED_EMAILS: string[] = [
-  "idanaviad10@gmail.com",
-  "liyamaoz1@gmail.com",
-  "rotembashi@gmail.com",
-  "lihistoff2@gmail.com",
-];
+import { supabase } from "./supabaseClient";
 
-export function isEmailAllowed(email: string | undefined): boolean {
-  if (!email) return false;
-  return ALLOWED_EMAILS.some((e) => e.toLowerCase() === email.toLowerCase());
+/** Returns true if the email exists in the `allowed_emails` Supabase table. */
+export async function checkEmailAllowed(email: string): Promise<boolean> {
+  const { data } = await supabase
+    .from("allowed_emails")
+    .select("email")
+    .eq("email", email.toLowerCase())
+    .maybeSingle();
+  return !!data;
 }

@@ -21,6 +21,7 @@ import { loadRequestData, useRequestStore } from "./store/useRequestStore";
 import { upsertProfile } from "./lib/tasksDb";
 import { useAuth } from "./lib/useAuth";
 import { usePushNotifications } from "./lib/usePushNotifications";
+import { checkEmailAllowed } from "./lib/allowedEmails";
 import type { Discussion } from "./types";
 
 /** Read ?id= from the URL once on mount, then clean the param. */
@@ -46,8 +47,10 @@ export default function App() {
   const { requests } = useRequestStore();
   const pendingInboxCount = requests.filter((r) => r.status === "pending").length;
   const isBashiUser = user?.user_metadata?.full_name === "רותם בשי";
+  const [isAllowed, setIsAllowed] = React.useState<boolean | null>(null);
   const [tab, setTab] = React.useState<Tab>("dashboard");
   const [addOpen, setAddOpen] = React.useState(false);
+  const [addInboxOpen, setAddInboxOpen] = React.useState(false);
   const [addTaskOpen, setAddTaskOpen] = React.useState(false);
   const [bashiAlertOpen, setBashiAlertOpen] = React.useState(true);
   const [participantsOpen, setParticipantsOpen] = React.useState(false);
@@ -64,6 +67,9 @@ export default function App() {
       reload();
       loadTaskData();
       loadRequestData();
+      checkEmailAllowed(user.email ?? "").then(setIsAllowed);
+    } else {
+      setIsAllowed(null);
     }
   }, [user]);
 
@@ -97,6 +103,31 @@ export default function App() {
   // Not logged in
   if (user === null) {
     return <LoginScreen onSignIn={signInWithGoogle} />;
+  }
+
+  // Checking DB access
+  if (isAllowed === null) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">{"טוען..."}</div>
+      </div>
+    );
+  }
+
+  // Not on the allowed list
+  if (isAllowed === false) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-6 text-center">
+        <div className="text-4xl">🔒</div>
+        <h1 className="text-lg font-bold text-foreground">אין גישה</h1>
+        <p className="text-sm text-muted-foreground max-w-xs">
+          הכתובת <span className="font-medium text-foreground">{user.email}</span> אינה מורשית להשתמש במערכת.
+        </p>
+        <button onClick={signOut} className="mt-2 text-sm text-accent underline underline-offset-2">
+          התנתק
+        </button>
+      </div>
+    );
   }
 
   if (error) {
@@ -149,7 +180,7 @@ export default function App() {
       <main className="flex-1 min-h-0 max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {(tab as string) === "search" && <SearchView onOpenDiscussion={setOpenId} />}
-        {tab === "inbox" && <InboxView addOpen={addOpen} onAddClose={() => setAddOpen(false)} />}
+        {tab === "inbox" && <InboxView addOpen={addInboxOpen} onAddClose={() => setAddInboxOpen(false)} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
         {tab === "tasks" && <TasksView addOpen={addTaskOpen} onAddClose={() => setAddTaskOpen(false)} />}
       </main>
@@ -162,7 +193,7 @@ export default function App() {
           if (tab === "tasks") {
             setAddTaskOpen(true);
           } else if (tab === "inbox") {
-            setAddOpen(true);
+            setAddInboxOpen(true);
           } else {
             setTemplate(null);
             setAddOpen(true);

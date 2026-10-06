@@ -225,3 +225,25 @@ create policy "anon read participants"
   on public.participants for select
   to anon
   using (true);
+
+-- ------------------------------------------------------------
+-- Access control (replaces client-side allowlist)
+-- ------------------------------------------------------------
+create table if not exists public.allowed_emails (
+  email text primary key
+);
+
+alter table public.allowed_emails enable row level security;
+
+create policy "authenticated can read allowed_emails"
+  on public.allowed_emails for select
+  to authenticated
+  using (true);
+
+-- Seed with initial allowed users (safe to re-run)
+insert into public.allowed_emails (email) values
+  ('idanaviad10@gmail.com'),
+  ('liyamaoz1@gmail.com'),
+  ('rotembashi@gmail.com'),
+  ('lihistoff2@gmail.com')
+on conflict do nothing;
