@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "icons/*.jpg"],
+      includeAssets: ["favicon.svg"],
       manifest: {
         name: "מצפן — מעקב דיונים",
         short_name: "מצפן",
@@ -21,8 +21,7 @@ export default defineConfig({
         dir: "rtl",
         start_url: "/",
         icons: [
-          { src: "/icons/icon-192.jpg", sizes: "192x192", type: "image/jpeg" },
-          { src: "/icons/icon-512.jpg", sizes: "512x512", type: "image/jpeg", purpose: "any maskable" },
+          { src: "/favicon.svg", sizes: "any", type: "image/svg+xml" },
         ],
       },
       workbox: {

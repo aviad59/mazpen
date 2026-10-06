@@ -9,7 +9,7 @@ import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { cn } from "@/lib/utils";
-import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest } from "@/store/useRequestStore";
+import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest, submitDiscussionRequest } from "@/store/useRequestStore";
 import { useStore } from "@/store/useStore";
 import type { DiscussionRequest, Participant } from "@/types";
 
@@ -176,6 +176,115 @@ function EditSheet({ open, onClose, request, participants, onSave }: EditSheetPr
   );
 }
 
+// ---- Add request sheet ----------------------------------------------------
+
+interface AddRequestSheetProps {
+  open: boolean;
+  onClose: () => void;
+  participants: Participant[];
+}
+
+function AddRequestSheet({ open, onClose, participants }: AddRequestSheetProps) {
+  const [title, setTitle] = React.useState("");
+  const [requesterName, setRequesterName] = React.useState("");
+  const [notes, setNotes] = React.useState("");
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [search, setSearch] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setTitle("");
+    setRequesterName("");
+    setNotes("");
+    setSelectedIds([]);
+    setSearch("");
+  }, [open]);
+
+  const filtered = search.trim()
+    ? participants.filter((p) => p.name.includes(search) || (p.role ?? "").includes(search))
+    : participants;
+
+  function toggleParticipant(id: string) {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  const canSave = title.trim().length > 0 && requesterName.trim().length > 0 && !saving;
+
+  async function handleSave() {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      await submitDiscussionRequest({
+        title: title.trim(),
+        requesterName: requesterName.trim(),
+        notes: notes.trim() || undefined,
+        participantIds: selectedIds,
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="הוספת בקשה"
+      footer={
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" onClick={onClose} className="flex-1">ביטול</Button>
+          <Button type="button" onClick={handleSave} disabled={!canSave} className="flex-[2]">
+            {saving ? "שומר..." : "הוסף בקשה"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="add-req-title">שם הדיון *</Label>
+          <Input id="add-req-title" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="לדוגמה: דיון מבצעי שבועי" />
+        </div>
+        <div>
+          <Label htmlFor="add-req-name">שם מבקש *</Label>
+          <Input id="add-req-name" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} placeholder="שם מלא" />
+        </div>
+        <div>
+          <Label htmlFor="add-req-notes">הערות</Label>
+          <Textarea id="add-req-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
+        </div>
+        <div>
+          <Label>משתתפים מוצעים</Label>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש..." className="mb-2" />
+          <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+            {filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-3">לא נמצאו</p>
+            ) : (
+              filtered.map((p) => {
+                const checked = selectedIds.includes(p.id);
+                return (
+                  <button key={p.id} type="button" onClick={() => toggleParticipant(p.id)}
+                    className={cn("w-full flex items-center gap-3 px-3 py-2 text-right transition-colors", checked ? "bg-accent/10" : "hover:bg-muted/50")}
+                  >
+                    <Avatar name={p.name} size="xs" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      {p.role && <div className="text-xs text-muted-foreground truncate">{p.role}</div>}
+                    </div>
+                    <div className={cn("h-4 w-4 rounded border-2 shrink-0 transition-colors", checked ? "bg-accent border-accent" : "border-muted-foreground/40")} />
+                  </button>
+                );
+              })
+            )}
+          </div>
+          {selectedIds.length > 0 && <p className="text-xs text-muted-foreground mt-1">{selectedIds.length} נבחרו</p>}
+        </div>
+      </div>
+    </Sheet>
+  );
+}
+
 // ---- Request card ---------------------------------------------------------
 
 interface RequestCardProps {
@@ -270,7 +379,12 @@ function RequestCard({ req, lookupParticipant, onApprove, onEdit, onReject, onDe
 
 // ---- Main view ------------------------------------------------------------
 
-export function InboxView() {
+interface InboxViewProps {
+  addOpen?: boolean;
+  onAddClose?: () => void;
+}
+
+export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
   const { requests, loading } = useRequestStore();
   const { participants, lookupParticipant, createDiscussion } = useStore();
   const [copied, setCopied] = React.useState(false);
@@ -401,6 +515,12 @@ export function InboxView() {
         request={editReq}
         participants={participants}
         onSave={handleEdit}
+      />
+
+      <AddRequestSheet
+        open={addOpen}
+        onClose={() => onAddClose?.()}
+        participants={participants}
       />
     </div>
   );
