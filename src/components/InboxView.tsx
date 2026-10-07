@@ -12,7 +12,18 @@ import { ApprovalSheet } from "./ApprovalSheet";
 import { cn } from "@/lib/utils";
 import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest, submitDiscussionRequest } from "@/store/useRequestStore";
 import { useStore } from "@/store/useStore";
-import type { DiscussionRequest, Participant } from "@/types";
+import type { DateWindow, DiscussionRequest, Participant } from "@/types";
+
+function dateWindowFromTime(requestedTime: string | undefined): DateWindow {
+  if (!requestedTime) return "this_week";
+  const date = new Date(requestedTime);
+  const now = new Date();
+  const diffDays = (date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  if (diffDays <= 7) return "this_week";
+  if (diffDays <= 14) return "next_week";
+  if (diffDays <= 28) return "later";
+  return "in_a_month";
+}
 
 const REQUEST_FORM_PATH = "/request";
 
@@ -40,13 +51,14 @@ interface EditSheetProps {
   request: DiscussionRequest | null;
   participants: Participant[];
   onCreate: (input: { name: string; role?: string; unit?: string }) => Promise<Participant>;
-  onSave: (id: string, patch: Partial<Pick<DiscussionRequest, "title" | "requesterName" | "notes" | "participantIds">>) => Promise<void>;
+  onSave: (id: string, patch: Partial<Pick<DiscussionRequest, "title" | "requesterName" | "notes" | "participantIds" | "requestedTime">>) => Promise<void>;
 }
 
 function EditSheet({ open, onClose, request, participants, onCreate, onSave }: EditSheetProps) {
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [requestedTime, setRequestedTime] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
 
@@ -55,6 +67,7 @@ function EditSheet({ open, onClose, request, participants, onCreate, onSave }: E
     setTitle(request.title);
     setRequesterName(request.requesterName);
     setNotes(request.notes ?? "");
+    setRequestedTime(request.requestedTime ?? "");
     setSelectedIds(request.participantIds);
   }, [open, request]);
 
@@ -69,6 +82,7 @@ function EditSheet({ open, onClose, request, participants, onCreate, onSave }: E
         requesterName: requesterName.trim(),
         notes: notes.trim() || undefined,
         participantIds: selectedIds,
+        requestedTime: requestedTime || undefined,
       });
       onClose();
     } finally {
@@ -106,6 +120,16 @@ function EditSheet({ open, onClose, request, participants, onCreate, onSave }: E
           <Textarea id="edit-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
         </div>
         <div>
+          <Label htmlFor="edit-req-time">זמן מבוקש</Label>
+          <input
+            id="edit-req-time"
+            type="datetime-local"
+            value={requestedTime}
+            onChange={(e) => setRequestedTime(e.target.value)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <div>
           <Label>משתתפים</Label>
           <ParticipantPicker
             participants={participants}
@@ -132,6 +156,7 @@ function AddRequestSheet({ open, onClose, participants, onCreate }: AddRequestSh
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [requestedTime, setRequestedTime] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
 
@@ -140,6 +165,7 @@ function AddRequestSheet({ open, onClose, participants, onCreate }: AddRequestSh
     setTitle("");
     setRequesterName("");
     setNotes("");
+    setRequestedTime("");
     setSelectedIds([]);
   }, [open]);
 
@@ -154,6 +180,7 @@ function AddRequestSheet({ open, onClose, participants, onCreate }: AddRequestSh
         requesterName: requesterName.trim(),
         notes: notes.trim() || undefined,
         participantIds: selectedIds,
+        requestedTime: requestedTime || undefined,
       });
       onClose();
     } finally {
@@ -183,6 +210,16 @@ function AddRequestSheet({ open, onClose, participants, onCreate }: AddRequestSh
         <div>
           <Label htmlFor="add-req-name">שם מבקש *</Label>
           <Input id="add-req-name" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} placeholder="שם מלא" />
+        </div>
+        <div>
+          <Label htmlFor="add-req-time">זמן מבוקש</Label>
+          <input
+            id="add-req-time"
+            type="datetime-local"
+            value={requestedTime}
+            onChange={(e) => setRequestedTime(e.target.value)}
+            className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
         </div>
         <div>
           <Label htmlFor="add-req-notes">הערות</Label>
@@ -244,6 +281,15 @@ function RequestCard({ req, lookupParticipant, onApprove, onEdit, onReject, onDe
           </button>
         </div>
       </div>
+
+      {req.requestedTime && (
+        <p className="text-xs text-muted-foreground">
+          זמן מבוקש:{" "}
+          <span className="font-medium text-foreground">
+            {new Date(req.requestedTime).toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" })}
+          </span>
+        </p>
+      )}
 
       {req.notes && (
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">{req.notes}</p>
@@ -325,6 +371,7 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
       participantIds: req.participantIds,
       leaderId,
       notes: req.notes,
+      dateWindow: dateWindowFromTime(req.requestedTime),
     });
     await approveRequest(req.id);
   }

@@ -118,6 +118,7 @@ export interface DiscussionRequest {
   requesterName: string;
   notes?: string;
   participantIds: string[];
+  requestedTime?: string;
   status: RequestStatus;
   createdAt: string;
   updatedAt: string;

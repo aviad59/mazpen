@@ -200,10 +200,13 @@ create table if not exists public.discussion_requests (
   requester_name   text not null,
   notes            text,
   participant_ids  text[] not null default array[]::text[],
+  requested_time   text,
   status           text not null default 'pending',
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+-- Migration: add requested_time if table already exists
+alter table public.discussion_requests add column if not exists requested_time text;
 
 alter table public.discussion_requests enable row level security;
 

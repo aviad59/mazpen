@@ -7,6 +7,7 @@ interface RequestRow {
   requester_name: string;
   notes: string | null;
   participant_ids: string[];
+  requested_time: string | null;
   status: RequestStatus;
   created_at: string;
   updated_at: string;
@@ -19,6 +20,7 @@ function fromRow(r: RequestRow): DiscussionRequest {
     requesterName: r.requester_name,
     notes: r.notes ?? undefined,
     participantIds: r.participant_ids ?? [],
+    requestedTime: r.requested_time ?? undefined,
     status: r.status,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -32,6 +34,7 @@ function toRow(r: DiscussionRequest): RequestRow {
     requester_name: r.requesterName,
     notes: r.notes ?? null,
     participant_ids: r.participantIds,
+    requested_time: r.requestedTime ?? null,
     status: r.status,
     created_at: r.createdAt,
     updated_at: r.updatedAt,

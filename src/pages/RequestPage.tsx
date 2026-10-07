@@ -20,6 +20,7 @@ export function RequestPage() {
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
+  const [requestedTime, setRequestedTime] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [participants, setParticipants] = React.useState<PublicParticipant[]>([]);
   const [participantsLoading, setParticipantsLoading] = React.useState(true);
@@ -63,6 +64,7 @@ export function RequestPage() {
         requesterName,
         notes: notes || undefined,
         participantIds: selectedIds,
+        requestedTime: requestedTime || undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -100,6 +102,7 @@ export function RequestPage() {
                 setTitle("");
                 setRequesterName("");
                 setNotes("");
+                setRequestedTime("");
                 setSelectedIds([]);
                 setSubmitted(false);
               }}
@@ -146,6 +149,17 @@ export function RequestPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="מדוע נדרש הדיון? נושא, רקע..."
                   rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="req-time">זמן מבוקש</Label>
+                <input
+                  id="req-time"
+                  type="datetime-local"
+                  value={requestedTime}
+                  onChange={(e) => setRequestedTime(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
