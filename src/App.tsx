@@ -177,7 +177,7 @@ export default function App() {
         userEmail={user.email}
       />
 
-      <main className="flex-1 min-h-0 max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-y-auto max-w-xl w-full mx-auto lg:max-w-none lg:overflow-hidden">
         {tab === "dashboard" && <Dashboard onOpenDiscussion={setOpenId} />}
         {(tab as string) === "search" && <SearchView onOpenDiscussion={setOpenId} />}
         {tab === "inbox" && <InboxView addOpen={addInboxOpen} onAddClose={() => setAddInboxOpen(false)} />}
