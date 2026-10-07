@@ -7,6 +7,7 @@ import { Avatar } from "./ui/Avatar";
 import { EmptyState } from "./ui/EmptyState";
 import { Sheet } from "./ui/Sheet";
 import { Input, Textarea, Label } from "./ui/Input";
+import { ParticipantPicker } from "./ParticipantPicker";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { cn } from "@/lib/utils";
 import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest, submitDiscussionRequest } from "@/store/useRequestStore";
@@ -38,15 +39,15 @@ interface EditSheetProps {
   onClose: () => void;
   request: DiscussionRequest | null;
   participants: Participant[];
+  onCreate: (input: { name: string; role?: string; unit?: string }) => Promise<Participant>;
   onSave: (id: string, patch: Partial<Pick<DiscussionRequest, "title" | "requesterName" | "notes" | "participantIds">>) => Promise<void>;
 }
 
-function EditSheet({ open, onClose, request, participants, onSave }: EditSheetProps) {
+function EditSheet({ open, onClose, request, participants, onCreate, onSave }: EditSheetProps) {
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [search, setSearch] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -55,18 +56,7 @@ function EditSheet({ open, onClose, request, participants, onSave }: EditSheetPr
     setRequesterName(request.requesterName);
     setNotes(request.notes ?? "");
     setSelectedIds(request.participantIds);
-    setSearch("");
   }, [open, request]);
-
-  const filtered = search.trim()
-    ? participants.filter(
-        (p) => p.name.includes(search) || (p.role ?? "").includes(search)
-      )
-    : participants;
-
-  function toggleParticipant(id: string) {
-    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  }
 
   const canSave = title.trim().length > 0 && requesterName.trim().length > 0 && !saving;
 
@@ -105,71 +95,24 @@ function EditSheet({ open, onClose, request, participants, onSave }: EditSheetPr
       <div className="space-y-4">
         <div>
           <Label htmlFor="edit-title">שם הדיון *</Label>
-          <Input
-            id="edit-title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            autoFocus
-          />
+          <Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         </div>
         <div>
           <Label htmlFor="edit-requester">שם מבקש *</Label>
-          <Input
-            id="edit-requester"
-            value={requesterName}
-            onChange={(e) => setRequesterName(e.target.value)}
-          />
+          <Input id="edit-requester" value={requesterName} onChange={(e) => setRequesterName(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="edit-notes">הערות</Label>
-          <Textarea
-            id="edit-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
+          <Textarea id="edit-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
         </div>
         <div>
           <Label>משתתפים</Label>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש..."
-            className="mb-2"
+          <ParticipantPicker
+            participants={participants}
+            value={selectedIds}
+            onChange={setSelectedIds}
+            onCreate={onCreate}
           />
-          <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-3">לא נמצאו</p>
-            ) : (
-              filtered.map((p) => {
-                const checked = selectedIds.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleParticipant(p.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 text-right transition-colors",
-                      checked ? "bg-accent/10" : "hover:bg-muted/50"
-                    )}
-                  >
-                    <Avatar name={p.name} size="xs" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
-                      {p.role && <div className="text-xs text-muted-foreground truncate">{p.role}</div>}
-                    </div>
-                    <div className={cn(
-                      "h-4 w-4 rounded border-2 shrink-0 transition-colors",
-                      checked ? "bg-accent border-accent" : "border-muted-foreground/40"
-                    )} />
-                  </button>
-                );
-              })
-            )}
-          </div>
-          {selectedIds.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-1">{selectedIds.length} נבחרו</p>
-          )}
         </div>
       </div>
     </Sheet>
@@ -182,14 +125,14 @@ interface AddRequestSheetProps {
   open: boolean;
   onClose: () => void;
   participants: Participant[];
+  onCreate: (input: { name: string; role?: string; unit?: string }) => Promise<Participant>;
 }
 
-function AddRequestSheet({ open, onClose, participants }: AddRequestSheetProps) {
+function AddRequestSheet({ open, onClose, participants, onCreate }: AddRequestSheetProps) {
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [search, setSearch] = React.useState("");
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -198,16 +141,7 @@ function AddRequestSheet({ open, onClose, participants }: AddRequestSheetProps) 
     setRequesterName("");
     setNotes("");
     setSelectedIds([]);
-    setSearch("");
   }, [open]);
-
-  const filtered = search.trim()
-    ? participants.filter((p) => p.name.includes(search) || (p.role ?? "").includes(search))
-    : participants;
-
-  function toggleParticipant(id: string) {
-    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  }
 
   const canSave = title.trim().length > 0 && requesterName.trim().length > 0 && !saving;
 
@@ -256,29 +190,12 @@ function AddRequestSheet({ open, onClose, participants }: AddRequestSheetProps) 
         </div>
         <div>
           <Label>משתתפים מוצעים</Label>
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חיפוש..." className="mb-2" />
-          <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-            {filtered.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-3">לא נמצאו</p>
-            ) : (
-              filtered.map((p) => {
-                const checked = selectedIds.includes(p.id);
-                return (
-                  <button key={p.id} type="button" onClick={() => toggleParticipant(p.id)}
-                    className={cn("w-full flex items-center gap-3 px-3 py-2 text-right transition-colors", checked ? "bg-accent/10" : "hover:bg-muted/50")}
-                  >
-                    <Avatar name={p.name} size="xs" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
-                      {p.role && <div className="text-xs text-muted-foreground truncate">{p.role}</div>}
-                    </div>
-                    <div className={cn("h-4 w-4 rounded border-2 shrink-0 transition-colors", checked ? "bg-accent border-accent" : "border-muted-foreground/40")} />
-                  </button>
-                );
-              })
-            )}
-          </div>
-          {selectedIds.length > 0 && <p className="text-xs text-muted-foreground mt-1">{selectedIds.length} נבחרו</p>}
+          <ParticipantPicker
+            participants={participants}
+            value={selectedIds}
+            onChange={setSelectedIds}
+            onCreate={onCreate}
+          />
         </div>
       </div>
     </Sheet>
@@ -386,7 +303,7 @@ interface InboxViewProps {
 
 export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
   const { requests, loading } = useRequestStore();
-  const { participants, lookupParticipant, createDiscussion } = useStore();
+  const { participants, lookupParticipant, createDiscussion, addParticipant } = useStore();
   const [copied, setCopied] = React.useState(false);
   const [approvalReq, setApprovalReq] = React.useState<DiscussionRequest | null>(null);
   const [editReq, setEditReq] = React.useState<DiscussionRequest | null>(null);
@@ -514,6 +431,7 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
         onClose={() => setEditReq(null)}
         request={editReq}
         participants={participants}
+        onCreate={addParticipant}
         onSave={handleEdit}
       />
 
@@ -521,6 +439,7 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
         open={addOpen}
         onClose={() => onAddClose?.()}
         participants={participants}
+        onCreate={addParticipant}
       />
     </div>
   );
