@@ -53,7 +53,7 @@ export async function rejectRequest(id: string): Promise<void> {
   setState({ requests: state.requests.map((x) => (x.id === id ? updated : x)) });
 }
 
-export async function updateRequest(id: string, patch: Partial<Pick<DiscussionRequest, "title" | "notes" | "participantIds" | "requesterName" | "requestedTime">>): Promise<void> {
+export async function updateRequest(id: string, patch: Partial<Pick<DiscussionRequest, "title" | "notes" | "participantIds" | "requesterName" | "durationMinutes">>): Promise<void> {
   const r = state.requests.find((x) => x.id === id);
   if (!r) return;
   const updated: DiscussionRequest = { ...r, ...patch, updatedAt: new Date().toISOString() };
@@ -71,7 +71,7 @@ export async function submitDiscussionRequest(input: {
   requesterName: string;
   notes?: string;
   participantIds: string[];
-  requestedTime?: string;
+  durationMinutes?: number;
 }): Promise<void> {
   const now = new Date().toISOString();
   const r: DiscussionRequest = {
@@ -80,7 +80,7 @@ export async function submitDiscussionRequest(input: {
     requesterName: input.requesterName.trim(),
     notes: input.notes?.trim() || undefined,
     participantIds: input.participantIds,
-    requestedTime: input.requestedTime || undefined,
+    durationMinutes: input.durationMinutes,
     status: "pending",
     createdAt: now,
     updatedAt: now,

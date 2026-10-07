@@ -20,7 +20,7 @@ export function RequestPage() {
   const [title, setTitle] = React.useState("");
   const [requesterName, setRequesterName] = React.useState("");
   const [notes, setNotes] = React.useState("");
-  const [requestedTime, setRequestedTime] = React.useState("");
+  const [durationMinutes, setDurationMinutes] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [participants, setParticipants] = React.useState<PublicParticipant[]>([]);
   const [participantsLoading, setParticipantsLoading] = React.useState(true);
@@ -59,12 +59,13 @@ export function RequestPage() {
     setSubmitting(true);
     setError(null);
     try {
+      const parsedDuration = durationMinutes.trim() ? parseInt(durationMinutes, 10) : undefined;
       await submitDiscussionRequest({
         title,
         requesterName,
         notes: notes || undefined,
         participantIds: selectedIds,
-        requestedTime: requestedTime || undefined,
+        durationMinutes: parsedDuration && !isNaN(parsedDuration) ? parsedDuration : undefined,
       });
       setSubmitted(true);
     } catch (err) {
@@ -102,7 +103,7 @@ export function RequestPage() {
                 setTitle("");
                 setRequesterName("");
                 setNotes("");
-                setRequestedTime("");
+                setDurationMinutes("");
                 setSelectedIds([]);
                 setSubmitted(false);
               }}
@@ -153,13 +154,15 @@ export function RequestPage() {
               </div>
 
               <div>
-                <Label htmlFor="req-time">זמן מבוקש</Label>
-                <input
-                  id="req-time"
-                  type="datetime-local"
-                  value={requestedTime}
-                  onChange={(e) => setRequestedTime(e.target.value)}
-                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                <Label htmlFor="req-duration">משך הדיון המבוקש (דקות)</Label>
+                <Input
+                  id="req-duration"
+                  type="number"
+                  min={1}
+                  max={480}
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(e.target.value)}
+                  placeholder="לדוגמה: 60"
                 />
               </div>
 
