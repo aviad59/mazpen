@@ -120,9 +120,10 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   const prevStatus = PREV_STATUS[d.status];
 
   const editIsPE = isPEDiscussion(edit.name);
+  const editHasParticipants = edit.participantIds.length > 0 || edit.extraParticipants.length > 0;
   const editIsValid =
     edit.name.trim().length > 0 &&
-    edit.participantIds.length > 0 &&
+    editHasParticipants &&
     (editIsPE || (
       !!edit.leaderId &&
       (edit.participantIds.includes(edit.leaderId) || edit.extraParticipants.includes(edit.leaderId))
