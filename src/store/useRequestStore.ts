@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { DiscussionRequest } from "@/types";
 import { listRequests, putRequest, deleteRequest } from "@/lib/requestsDb";
+import { supabase } from "@/lib/supabaseClient";
 import { uid } from "@/lib/utils";
 
 interface RequestState {
@@ -87,6 +88,13 @@ export async function submitDiscussionRequest(input: {
   };
   await putRequest(r);
 }
+
+supabase
+  .channel("discussion_requests_changes")
+  .on("postgres_changes", { event: "*", schema: "public", table: "discussion_requests" }, () => {
+    void refreshRequests();
+  })
+  .subscribe();
 
 function subscribe(cb: () => void) {
   listeners.add(cb);
