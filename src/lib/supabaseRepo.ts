@@ -165,7 +165,7 @@ export function createSupabaseRepo(_url: string, _anonKey: string): Repository {
       const { data, error } = await client
         .from("discussions")
         .select(
-          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,optional_participant_ids,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,cycles,history,created_at,updated_at"
+          "id,name,status,date_window,scheduled_week,participant_ids,extra_participants,optional_participant_ids,leader_id,requires_summary,requires_substrate,requires_bashi_review,recurrence,duration_minutes,notes,summary,driving_time_preference,important,cycles,history,created_at,updated_at"
         )
         .limit(5000);
       if (error) throw error;
