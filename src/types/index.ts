@@ -164,6 +164,8 @@ export interface Discussion {
 
   /** Requires review/handoff by בשי before it can proceed. Auto-clears when בשי edits the discussion. */
   requiresBashiReview?: boolean;
+  /** Pinned as high priority. */
+  important?: boolean;
   notes?: string;
   summary?: string;
   /** Prefer scheduling this discussion during driving/commute time. */

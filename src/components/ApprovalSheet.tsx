@@ -5,7 +5,8 @@ import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
-import type { DiscussionRequest, Participant } from "@/types";
+import { DateWindowPicker } from "./DateWindowPicker";
+import type { DateWindow, DiscussionRequest, Participant } from "@/types";
 
 interface Props {
   open: boolean;
@@ -13,11 +14,12 @@ interface Props {
   request: DiscussionRequest | null;
   participants: Participant[];
   lookupParticipant: (id: string) => Participant | undefined;
-  onApprove: (req: DiscussionRequest, leaderId?: string) => Promise<void>;
+  onApprove: (req: DiscussionRequest, leaderId?: string, dateWindow?: DateWindow) => Promise<void>;
 }
 
 export function ApprovalSheet({ open, onClose, request, participants, lookupParticipant, onApprove }: Props) {
   const [leaderId, setLeaderId] = React.useState("");
+  const [dateWindow, setDateWindow] = React.useState<DateWindow>("this_week");
   const [saving, setSaving] = React.useState(false);
 
   const resolvedParticipants = (request?.participantIds ?? [])
@@ -29,6 +31,7 @@ export function ApprovalSheet({ open, onClose, request, participants, lookupPart
   React.useEffect(() => {
     if (!open) return;
     setLeaderId(request?.participantIds[0] ?? "");
+    setDateWindow("this_week");
   }, [open, request]);
 
   const leaderOptions = [
@@ -42,7 +45,7 @@ export function ApprovalSheet({ open, onClose, request, participants, lookupPart
     if (!request || !canApprove) return;
     setSaving(true);
     try {
-      await onApprove(request, leaderId || undefined);
+      await onApprove(request, leaderId || undefined, dateWindow);
       onClose();
     } finally {
       setSaving(false);
@@ -107,6 +110,13 @@ export function ApprovalSheet({ open, onClose, request, participants, lookupPart
             )}
           </div>
         )}
+
+        <div>
+          <Label>מתי יתקיים הדיון?</Label>
+          <div className="mt-1.5">
+            <DateWindowPicker value={dateWindow} onChange={setDateWindow} />
+          </div>
+        </div>
 
         <div className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           הדיון ייווצר בסטטוס <Badge tone="muted" className="text-[10px]">חדש</Badge> וייכנס ללוח המבצעי.

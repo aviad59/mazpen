@@ -12,7 +12,7 @@ import { ApprovalSheet } from "./ApprovalSheet";
 import { cn } from "@/lib/utils";
 import { useRequestStore, approveRequest, rejectRequest, removeRequest, updateRequest, submitDiscussionRequest } from "@/store/useRequestStore";
 import { useStore } from "@/store/useStore";
-import type { DiscussionRequest, Participant } from "@/types";
+import type { DateWindow, DiscussionRequest, Participant } from "@/types";
 
 const REQUEST_FORM_PATH = "/request";
 
@@ -358,13 +358,14 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
     });
   }
 
-  async function handleApprove(req: DiscussionRequest, leaderId?: string) {
+  async function handleApprove(req: DiscussionRequest, leaderId?: string, dateWindow?: DateWindow) {
     await createDiscussion({
       name: req.title,
       participantIds: req.participantIds,
       leaderId,
       notes: req.notes,
       durationMinutes: req.durationMinutes,
+      dateWindow: dateWindow ?? "this_week",
     });
     await approveRequest(req.id);
   }
@@ -374,6 +375,7 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
   }
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="max-w-xl w-full mx-auto px-3 pb-24 pt-3 space-y-4">
       {/* Header row */}
       <div className="flex items-center justify-between gap-2">
@@ -481,6 +483,7 @@ export function InboxView({ addOpen = false, onAddClose }: InboxViewProps) {
         participants={participants}
         onCreate={addParticipant}
       />
+    </div>
     </div>
   );
 }

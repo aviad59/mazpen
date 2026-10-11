@@ -1,4 +1,4 @@
-import { Building2, CalendarRange, Car, FileStack } from "lucide-react";
+import { Building2, CalendarRange, Car, FileStack, Star } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Avatar } from "./ui/Avatar";
 import { Badge } from "./ui/Badge";
@@ -163,6 +163,12 @@ export function DiscussionCard({ discussion: d, lookupParticipant, onOpen, compa
         )}
         {d.requiresBashiReview && (
           <Badge tone="warning">דורש מעבר של בשי</Badge>
+        )}
+        {d.important && (
+          <Badge tone="warning" className="gap-1">
+            <Star size={10} className="fill-current" />
+            חשוב
+          </Badge>
         )}
       </div>
     </Card>

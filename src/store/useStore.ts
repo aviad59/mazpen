@@ -200,6 +200,7 @@ export type CreateDiscussionInput = {
   notes?: string;
   drivingTimePreference?: boolean;
   requiresBashiReview?: boolean;
+  important?: boolean;
 };
 
 async function createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
@@ -225,6 +226,7 @@ async function createDiscussion(input: CreateDiscussionInput): Promise<Discussio
     notes: input.notes,
     drivingTimePreference: input.drivingTimePreference ?? false,
     requiresBashiReview: input.requiresBashiReview ?? false,
+    important: input.important ?? false,
     history: [{ id: uid("h-"), kind: "created", at: nowIso, text: "הדיון נוצר", by: currentUserName || undefined }],
     createdAt: nowIso,
     updatedAt: nowIso,

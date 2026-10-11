@@ -58,6 +58,8 @@ alter table public.discussions
   add column if not exists driving_time_preference boolean not null default false;
 alter table public.discussions
   add column if not exists requires_bashi_review boolean not null default false;
+alter table public.discussions
+  add column if not exists important boolean not null default false;
 
 create index if not exists discussions_status_idx      on public.discussions (status);
 create index if not exists discussions_date_window_idx on public.discussions (date_window);

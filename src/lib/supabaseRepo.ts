@@ -37,6 +37,7 @@ interface DiscussionRow {
   notes: string | null;
   summary: string | null;
   driving_time_preference: boolean | null;
+  important: boolean | null;
   cycles: DiscussionCycle[];
   history: HistoryEvent[];
   created_at: string;
@@ -87,6 +88,7 @@ function fromDiscussionRow(r: DiscussionRow): Discussion {
     notes: r.notes ?? undefined,
     summary: r.summary ?? undefined,
     drivingTimePreference: r.driving_time_preference ?? false,
+    important: r.important ?? false,
     cycles: r.cycles?.length ? r.cycles : undefined,
     history: r.history ?? [],
     createdAt: r.created_at,
@@ -113,6 +115,7 @@ function toDiscussionRow(d: Discussion): DiscussionRow {
     notes: d.notes ?? null,
     summary: d.summary ?? null,
     driving_time_preference: d.drivingTimePreference ?? false,
+    important: d.important ?? false,
     cycles: d.cycles ?? [],
     history: d.history,
     created_at: d.createdAt,

@@ -11,6 +11,7 @@ import {
   Send,
   Share2,
   Sparkles,
+  Star,
   Timer,
   Trash2,
   Undo2,
@@ -174,6 +175,10 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
     onClose();
   }
 
+  async function toggleImportant() {
+    await updateDiscussion(d.id, { important: !d.important });
+  }
+
   async function handleShare() {
     const shareUrl = `${window.location.origin}/api/share?id=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`;
     if (navigator.share) {
@@ -205,6 +210,15 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   const footer = !editing ? (
     <div className="flex gap-2">
       <Button variant="outline" size="md" onClick={() => setEditing(true)} className="flex-1">{T.edit}</Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleImportant}
+        title={d.important ? "הסר חשוב" : "סמן כחשוב"}
+        className={cn(d.important && "text-amber-500")}
+      >
+        <Star size={16} className={cn(d.important && "fill-current")} />
+      </Button>
       <Button
         variant="ghost"
         size="icon"
