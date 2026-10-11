@@ -53,9 +53,6 @@ export default function handler(req: any, res: any) {
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="פרטי הדיון המבצעי במצפן" />
   <meta property="og:url" content="${escapeHtml(ogUrl)}" />
-  <meta property="og:image" content="${escapeHtml(origin)}/icons/icon-512.jpg" />
-  <meta property="og:image:width" content="512" />
-  <meta property="og:image:height" content="512" />
   <meta property="og:site_name" content="מצפן" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="${escapeHtml(title)}" />
