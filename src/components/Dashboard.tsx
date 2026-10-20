@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CalendarRange, HelpCircle, Clock, ChevronDown } from "lucide-react";
+import { CalendarRange, HelpCircle, Clock, ChevronDown, List, Star } from "lucide-react";
 import { DiscussionCard } from "./DiscussionCard";
 import { SectionHeader } from "./SectionHeader";
 import { EmptyState } from "./ui/EmptyState";
@@ -7,10 +7,35 @@ import { useStore } from "@/store/useStore";
 import { SECTION_HINT, SECTION_LABEL, T } from "@/lib/he";
 import { byCreatedDesc, effectiveScheduledSection, sectionDateRange } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import type { DashboardSection, Discussion } from "@/types";
+import type { DashboardSection, Discussion, Participant } from "@/types";
 
 interface Props {
   onOpenDiscussion: (id: string) => void;
+}
+
+// ---- Mini card (minimalist row) ------------------------------------------
+
+interface MiniCardProps {
+  d: Discussion;
+  lookupParticipant: (id: string) => Participant | undefined;
+  onOpen: (id: string) => void;
+}
+
+function MiniCard({ d, lookupParticipant, onOpen }: MiniCardProps) {
+  const leader = d.leaderId ? lookupParticipant(d.leaderId) : undefined;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(d.id)}
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors text-right"
+    >
+      {d.important && <Star size={11} className="text-amber-500 fill-current shrink-0" />}
+      <span className="flex-1 text-sm font-medium truncate">{d.name}</span>
+      {leader && (
+        <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[6rem]">{leader.name}</span>
+      )}
+    </button>
+  );
 }
 
 // ---- Phase box wrapper (mobile) -----------------------------------------
@@ -23,26 +48,24 @@ interface PhaseBoxProps {
   children: React.ReactNode;
   collapsed: boolean;
   onToggle: () => void;
+  actions?: React.ReactNode;
 }
 
-function PhaseBox({ label, count, headerClass, borderClass, children, collapsed, onToggle }: PhaseBoxProps) {
+function PhaseBox({ label, count, headerClass, borderClass, children, collapsed, onToggle, actions }: PhaseBoxProps) {
   if (count === 0) return null;
   return (
     <div className={cn("rounded-xl border-2 overflow-hidden", borderClass)}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={cn("w-full flex items-center justify-between px-4 py-2 select-none", headerClass)}
-      >
-        <span className="text-sm font-bold tracking-wide">{label}</span>
-        <div className="flex items-center gap-2">
+      <div className={cn("flex items-center px-4 py-2 select-none", headerClass)}>
+        <button type="button" onClick={onToggle} className="flex-1 flex items-center gap-2 text-right">
+          <span className="text-sm font-bold tracking-wide">{label}</span>
           <span className="text-xs font-semibold opacity-70 bg-white/20 rounded-full px-2 py-0.5">{count}</span>
           <ChevronDown
             size={15}
-            className={cn("opacity-80 transition-transform duration-200", collapsed && "-rotate-90")}
+            className={cn("opacity-80 transition-transform duration-200 ms-auto", collapsed && "-rotate-90")}
           />
-        </div>
-      </button>
+        </button>
+        {actions && <div className="ms-2 shrink-0">{actions}</div>}
+      </div>
       {!collapsed && (
         <div className="p-3 space-y-1 bg-background">
           {children}
@@ -64,14 +87,18 @@ interface KanbanColumnProps {
   children: React.ReactNode;
   bodyProps?: React.HTMLAttributes<HTMLDivElement>;
   isDragOver?: boolean;
+  actions?: React.ReactNode;
 }
 
-function KanbanColumn({ label, count, headerClass, borderClass, emptyTitle, emptyIcon, children, bodyProps, isDragOver }: KanbanColumnProps) {
+function KanbanColumn({ label, count, headerClass, borderClass, emptyTitle, emptyIcon, children, bodyProps, isDragOver, actions }: KanbanColumnProps) {
   return (
     <div className={cn("flex-1 flex flex-col min-h-0 min-w-0 rounded-xl border-2 overflow-hidden transition-colors", borderClass, isDragOver && "border-accent/60")}>
       <div className={cn("flex items-center justify-between px-4 py-2.5 shrink-0", headerClass)}>
         <span className="text-sm font-bold tracking-wide">{label}</span>
-        <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5">{count}</span>
+        <div className="flex items-center gap-2">
+          {actions}
+          <span className="text-xs font-semibold bg-white/20 rounded-full px-2 py-0.5">{count}</span>
+        </div>
       </div>
       <div className={cn("flex-1 overflow-y-auto p-3 bg-background transition-colors", isDragOver && "bg-accent/5")} {...bodyProps}>
         {count === 0 ? (
@@ -151,6 +178,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
   const buckets = React.useMemo(() => bucketize(discussions), [discussions]);
   const [collapsed, setCollapsed] = React.useState<Partial<Record<DashboardSection, boolean>>>({});
   const [phaseCollapsed, setPhaseCollapsed] = React.useState<Record<string, boolean>>({});
+  const [planningMini, setPlanningMini] = React.useState(false);
   const toggleSection = (w: DashboardSection) =>
     setCollapsed((prev) => ({ ...prev, [w]: !prev[w] }));
   const togglePhase = (key: string) =>
@@ -236,7 +264,26 @@ export function Dashboard({ onOpenDiscussion }: Props) {
           borderClass="border-blue-200 dark:border-blue-800"
           emptyTitle={T.empty.this_week}
           emptyIcon={<CalendarRange size={32} />}
+          actions={
+            <button
+              type="button"
+              onClick={() => setPlanningMini((v) => !v)}
+              title={planningMini ? "תצוגה מפורטת" : "תצוגה מינימלית"}
+              className={cn("rounded p-1 transition-colors", planningMini ? "bg-white/30" : "hover:bg-white/20")}
+            >
+              <List size={13} />
+            </button>
+          }
         >
+          {planningMini ? (
+            <div className="space-y-0.5">
+              {PLANNING_WINDOWS.flatMap((w) => buckets.planning[w])
+                .sort((a, b) => (b.important ? 1 : 0) - (a.important ? 1 : 0))
+                .map((d) => (
+                  <MiniCard key={d.id} d={d} lookupParticipant={lookupParticipant} onOpen={onOpenDiscussion} />
+                ))}
+            </div>
+          ) : (
           <div className="space-y-3">
             {PLANNING_WINDOWS.map((w) => {
               const items = buckets.planning[w];
@@ -281,6 +328,7 @@ export function Dashboard({ onOpenDiscussion }: Props) {
               );
             })}
           </div>
+          )}
         </KanbanColumn>
 
         {/* Column 2: תואם — column-body drop zone */}
@@ -366,8 +414,27 @@ export function Dashboard({ onOpenDiscussion }: Props) {
           borderClass="border-blue-200 dark:border-blue-800"
           collapsed={!!phaseCollapsed["planning"]}
           onToggle={() => togglePhase("planning")}
+          actions={
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setPlanningMini((v) => !v); }}
+              title={planningMini ? "תצוגה מפורטת" : "תצוגה מינימלית"}
+              className={cn("rounded p-1 transition-colors", planningMini ? "bg-white/30" : "hover:bg-white/20")}
+            >
+              <List size={13} />
+            </button>
+          }
         >
-          {PLANNING_WINDOWS.map((w) => {
+          {planningMini ? (
+            <div className="space-y-0.5 pt-1">
+              {PLANNING_WINDOWS.flatMap((w) => buckets.planning[w])
+                .sort((a, b) => (b.important ? 1 : 0) - (a.important ? 1 : 0))
+                .map((d) => (
+                  <MiniCard key={d.id} d={d} lookupParticipant={lookupParticipant} onOpen={onOpenDiscussion} />
+                ))}
+            </div>
+          ) : (
+          PLANNING_WINDOWS.map((w) => {
             const items = buckets.planning[w];
             const isCollapsed = !!collapsed[w];
             return (
@@ -399,7 +466,8 @@ export function Dashboard({ onOpenDiscussion }: Props) {
                 )}
               </section>
             );
-          })}
+          })
+          )}
         </PhaseBox>
 
         {/* Phase 2: Coordinated (תואם) */}
