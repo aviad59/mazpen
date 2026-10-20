@@ -153,6 +153,22 @@ supabase.auth.onAuthStateChange((event, session) => {
   }
 });
 
+async function refreshDiscussions() {
+  try {
+    const discussions = await listDiscussions();
+    setState((p) => ({ ...p, discussions }));
+  } catch {
+    // silent — the stale data stays
+  }
+}
+
+supabase
+  .channel("discussions_changes")
+  .on("postgres_changes", { event: "*", schema: "public", table: "discussions" }, () => {
+    void refreshDiscussions();
+  })
+  .subscribe();
+
 function subscribe(cb: () => void) {
   listeners.add(cb);
   return () => listeners.delete(cb);
