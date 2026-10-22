@@ -130,18 +130,8 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // --- Auth ---
-  const apiKey = Deno.env.get("MCP_API_KEY");
-  if (apiKey) {
-    const authHeader = req.headers.get("authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (token !== apiKey) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: jsonHeaders,
-      });
-    }
-  }
+  // Auth: Supabase JWT verification runs before this code (anon key or user JWT).
+  // No additional check needed — the anon key is the access credential.
 
   // --- Parse request ---
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
