@@ -12,3 +12,4 @@ dist-ssr/
 !.vscode/extensions.json
 *.tsbuildinfo
 vite.config.js
+supabase/.temp/
