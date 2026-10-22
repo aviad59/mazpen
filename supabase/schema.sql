@@ -252,3 +252,6 @@ insert into public.allowed_emails (email) values
   ('rotembashi@gmail.com'),
   ('lihistoff2@gmail.com')
 on conflict do nothing;
+
+-- Add phone number to participants (safe to re-run)
+alter table public.participants add column if not exists phone text;

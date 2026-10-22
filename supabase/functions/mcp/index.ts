@@ -107,7 +107,13 @@ function buildParticipantMap(rows: AnyRow[]): Map<string, AnyRow> {
 function resolveParticipant(id: string, map: Map<string, AnyRow>) {
   const p = map.get(id);
   return p
-    ? { id: p.id as string, name: p.name as string, role: (p.role as string) ?? undefined, unit: (p.unit as string) ?? undefined }
+    ? {
+        id: p.id as string,
+        name: p.name as string,
+        role: (p.role as string) ?? undefined,
+        unit: (p.unit as string) ?? undefined,
+        phone: (p.phone as string) ?? undefined,
+      }
     : { id, name: "Unknown" };
 }
 
@@ -202,7 +208,7 @@ Deno.serve(async (req) => {
             )
             .in("status", ["new", "coordinated"])
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role,unit"),
+          supabase.from("participants").select("id,name,role,unit,phone"),
         ]);
 
         if (dErr) throw dErr;
@@ -247,7 +253,7 @@ Deno.serve(async (req) => {
             )
             .eq("status", "pending")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role"),
+          supabase.from("participants").select("id,name,role,phone"),
         ]);
 
         if (rErr) throw rErr;
@@ -276,7 +282,7 @@ Deno.serve(async (req) => {
             .from("tasks")
             .select("id,title,description,responsible_id,done,created_at,updated_at")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name"),
+          supabase.from("participants").select("id,name,phone"),
         ]);
 
         if (tErr) throw tErr;
