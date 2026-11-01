@@ -289,6 +289,13 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
               </div>
             </div>
           )}
+          <div className="mt-2 flex items-center gap-2 text-sm">
+            <Clock size={14} className="text-muted-foreground" />
+            <span className="text-muted-foreground">נוצר:</span>
+            <span className="font-medium">
+              {new Date(d.createdAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          </div>
         </Card>
 
         {!editing && (nextActions.length > 0 || prevStatus) && (
