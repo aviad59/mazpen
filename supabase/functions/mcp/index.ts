@@ -41,7 +41,32 @@ const DATE_WINDOW_LABEL: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = {
   new: "חדש — בתכנון",
   coordinated: "מתואם — ממתין לביצוע",
+  occurred: "התקיים",
+  waiting_summary: "ממתין לסיכום",
+  waiting_approval: "ממתין לאישור סיכום",
+  distributed: "הופץ",
+  cancelled: "בוטל",
 };
+
+const VALID_STATUSES = new Set(Object.keys(STATUS_LABEL));
+const VALID_DATE_WINDOWS = new Set(["this_week", "next_week", "later", "in_a_month", "unspecified"]);
+
+/** Returns the ISO date string of the Monday of the week offset by `weekOffset` from now. */
+function mondayOfWeek(weekOffset: number): string {
+  const d = new Date();
+  const day = d.getUTCDay(); // 0=Sun
+  const diff = (day === 0 ? -6 : 1 - day) + weekOffset * 7;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function scheduledWeekForWindow(w: string): string | null {
+  if (w === "this_week") return mondayOfWeek(0);
+  if (w === "next_week") return mondayOfWeek(1);
+  if (w === "later") return mondayOfWeek(2);
+  if (w === "in_a_month") return mondayOfWeek(4);
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Tool definitions (returned by tools/list)
@@ -72,6 +97,36 @@ const TOOLS = [
       "Each item includes the title, description, whether it is done, " +
       "and the responsible person (name + id) if one is assigned.",
     inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "update_discussion",
+    description:
+      "Update one or more fields of an existing discussion. Only the fields you provide are changed. " +
+      "Use list_discussions to get discussion IDs. " +
+      "Allowed status transitions: new → coordinated → occurred/waiting_summary → distributed. " +
+      "Setting dateWindow also updates the scheduledWeek automatically.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Discussion ID (required)" },
+        name: { type: "string", description: "New name for the discussion" },
+        status: {
+          type: "string",
+          enum: ["new", "coordinated", "occurred", "waiting_summary", "waiting_approval", "distributed", "cancelled"],
+          description: "New status",
+        },
+        dateWindow: {
+          type: "string",
+          enum: ["this_week", "next_week", "later", "in_a_month", "unspecified"],
+          description: "New scheduling window",
+        },
+        notes: { type: "string", description: "Replace the notes field. Pass empty string to clear." },
+        leaderId: { type: "string", description: "Participant ID of the new leader. Pass empty string to clear." },
+        durationMinutes: { type: "number", description: "Meeting duration in minutes. Pass 0 to clear." },
+        important: { type: "boolean", description: "Mark or unmark as important" },
+      },
+      required: ["id"],
+    },
   },
   {
     name: "create_task",
@@ -302,6 +357,48 @@ Deno.serve(async (req) => {
         }));
 
         return ok(textContent(result));
+      }
+
+      // ---- update_discussion -----------------------------------------------
+      if (toolName === "update_discussion") {
+        const discussionId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!discussionId) return rpcError(-32602, "id is required");
+
+        // Validate enum fields if provided
+        if (args.status !== undefined && !VALID_STATUSES.has(args.status as string)) {
+          return rpcError(-32602, `Invalid status: ${args.status}`);
+        }
+        if (args.dateWindow !== undefined && !VALID_DATE_WINDOWS.has(args.dateWindow as string)) {
+          return rpcError(-32602, `Invalid dateWindow: ${args.dateWindow}`);
+        }
+
+        // Build the patch — only include explicitly provided fields
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+
+        if (typeof args.name === "string" && args.name.trim()) patch.name = args.name.trim();
+        if (typeof args.status === "string") patch.status = args.status;
+        if (typeof args.dateWindow === "string") {
+          patch.date_window = args.dateWindow;
+          patch.scheduled_week = scheduledWeekForWindow(args.dateWindow);
+        }
+        if (typeof args.notes === "string") patch.notes = args.notes.trim() || null;
+        if (typeof args.leaderId === "string") patch.leader_id = args.leaderId.trim() || null;
+        if (typeof args.durationMinutes === "number") patch.duration_minutes = args.durationMinutes > 0 ? args.durationMinutes : null;
+        if (typeof args.important === "boolean") patch.important = args.important;
+
+        if (Object.keys(patch).length === 1) {
+          return rpcError(-32602, "No fields to update — provide at least one field besides id");
+        }
+
+        const { error: uErr } = await supabase
+          .from("discussions")
+          .update(patch)
+          .eq("id", discussionId);
+
+        if (uErr) throw uErr;
+
+        return ok(textContent({ success: true, id: discussionId, updated: patch }));
       }
 
       // ---- create_task -----------------------------------------------------
