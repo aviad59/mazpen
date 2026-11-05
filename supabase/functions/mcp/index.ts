@@ -179,6 +179,7 @@ function resolveParticipant(id: string, map: Map<string, AnyRow>) {
         role: (p.role as string) ?? undefined,
         unit: (p.unit as string) ?? undefined,
         phone: (p.phone as string) ?? undefined,
+        aliases: (p.aliases as string[] | null) ?? undefined,
       }
     : { id, name: "Unknown" };
 }
@@ -274,7 +275,7 @@ Deno.serve(async (req) => {
             )
             .in("status", ["new", "coordinated"])
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role,unit,phone"),
+          supabase.from("participants").select("id,name,role,unit,phone,aliases"),
         ]);
 
         if (dErr) throw dErr;
@@ -319,7 +320,7 @@ Deno.serve(async (req) => {
             )
             .eq("status", "pending")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role,phone"),
+          supabase.from("participants").select("id,name,role,phone,aliases"),
         ]);
 
         if (rErr) throw rErr;
@@ -348,7 +349,7 @@ Deno.serve(async (req) => {
             .from("tasks")
             .select("id,title,description,responsible_id,done,created_at,updated_at")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,phone"),
+          supabase.from("participants").select("id,name,phone,aliases"),
         ]);
 
         if (tErr) throw tErr;

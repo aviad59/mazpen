@@ -53,6 +53,8 @@ export interface Participant {
   /** Unit the participant belongs to. "מצפן" = home (internal). */
   unit?: string;
   phone?: string;
+  /** Alternative names / identifiers (e.g. English name, email prefix, nickname). */
+  aliases?: string[];
   external?: boolean;
   /** When true the participant's attendance is optional (רשות). */
   optional?: boolean;

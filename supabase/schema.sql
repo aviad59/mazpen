@@ -255,3 +255,6 @@ on conflict do nothing;
 
 -- Add phone number to participants (safe to re-run)
 alter table public.participants add column if not exists phone text;
+
+-- Add aliases array to participants (safe to re-run)
+alter table public.participants add column if not exists aliases text[] not null default array[]::text[];

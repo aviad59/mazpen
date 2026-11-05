@@ -50,6 +50,7 @@ interface ParticipantRow {
   role: string | null;
   unit: string | null;
   phone: string | null;
+  aliases: string[] | null;
   external: boolean;
   optional: boolean;
 }
@@ -131,6 +132,7 @@ function fromParticipantRow(r: ParticipantRow): Participant {
     role: r.role ?? undefined,
     unit: r.unit ?? undefined,
     phone: r.phone ?? undefined,
+    aliases: r.aliases ?? undefined,
     external: r.external ?? false,
     optional: r.optional ?? false,
   };
@@ -143,6 +145,7 @@ function toParticipantRow(p: Participant): ParticipantRow {
     role: p.role ?? null,
     unit: p.unit ?? null,
     phone: p.phone ?? null,
+    aliases: p.aliases ?? null,
     external: !!p.external,
     optional: !!p.optional,
   };
