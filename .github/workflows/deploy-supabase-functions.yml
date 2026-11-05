@@ -20,4 +20,4 @@ jobs:
       - name: Deploy all Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy --project-ref jclzockxzooqonfxfznq --use-api
+        run: supabase functions deploy --project-ref jclzockxzooqonfxfznq --use-api --yes
