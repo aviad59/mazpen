@@ -99,6 +99,48 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "list_participants",
+    description:
+      "Return all participants in the system with their id, name, role, unit, phone, and aliases. " +
+      "Use this to find participant IDs before creating or updating discussions and tasks.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "delete_task",
+    description: "Permanently delete a task by ID. Use list_tasks to get the task id. This action cannot be undone.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task ID (required)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "approve_request",
+    description:
+      "Approve a pending discussion request. Use list_requests to get the request id. " +
+      "This marks the request as approved — it does NOT automatically create a discussion.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Request ID (required)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "reject_request",
+    description: "Reject a pending discussion request. Use list_requests to get the request id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Request ID (required)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "complete_task",
     description: "Mark a task as done. Use list_tasks to get the task id.",
     inputSchema: {
@@ -418,6 +460,66 @@ Deno.serve(async (req) => {
         }));
 
         return ok(textContent(result));
+      }
+
+      // ---- list_participants -----------------------------------------------
+      if (toolName === "list_participants") {
+        const { data, error: pErr } = await supabase
+          .from("participants")
+          .select("id,name,role,unit,phone,aliases,external,optional")
+          .order("name", { ascending: true });
+
+        if (pErr) throw pErr;
+
+        return ok(textContent((data ?? []).map((p: AnyRow) => ({
+          id: p.id,
+          name: p.name,
+          role: (p.role as string | null) ?? undefined,
+          unit: (p.unit as string | null) ?? undefined,
+          phone: (p.phone as string | null) ?? undefined,
+          aliases: (p.aliases as string[] | null)?.length ? p.aliases : undefined,
+          external: p.external ?? false,
+          optional: p.optional ?? false,
+        }))));
+      }
+
+      // ---- delete_task -----------------------------------------------------
+      if (toolName === "delete_task") {
+        const taskId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!taskId) return rpcError(-32602, "id is required");
+
+        const { error: dErr } = await supabase.from("tasks").delete().eq("id", taskId);
+        if (dErr) throw dErr;
+
+        return ok(textContent({ success: true, id: taskId }));
+      }
+
+      // ---- approve_request -------------------------------------------------
+      if (toolName === "approve_request") {
+        const reqId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!reqId) return rpcError(-32602, "id is required");
+
+        const { error: uErr } = await supabase
+          .from("discussion_requests")
+          .update({ status: "approved", updated_at: new Date().toISOString() })
+          .eq("id", reqId);
+        if (uErr) throw uErr;
+
+        return ok(textContent({ success: true, id: reqId, status: "approved" }));
+      }
+
+      // ---- reject_request --------------------------------------------------
+      if (toolName === "reject_request") {
+        const reqId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!reqId) return rpcError(-32602, "id is required");
+
+        const { error: uErr } = await supabase
+          .from("discussion_requests")
+          .update({ status: "rejected", updated_at: new Date().toISOString() })
+          .eq("id", reqId);
+        if (uErr) throw uErr;
+
+        return ok(textContent({ success: true, id: reqId, status: "rejected" }));
       }
 
       // ---- update_discussion -----------------------------------------------
