@@ -99,6 +99,17 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "complete_task",
+    description: "Mark a task as done. Use list_tasks to get the task id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Task ID (required)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "update_discussion",
     description:
       "Update one or more fields of an existing discussion. Only the fields you provide are changed. " +
@@ -446,6 +457,21 @@ Deno.serve(async (req) => {
             },
           })
         );
+      }
+
+      // ---- complete_task ---------------------------------------------------
+      if (toolName === "complete_task") {
+        const taskId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!taskId) return rpcError(-32602, "id is required");
+
+        const { error: uErr } = await supabase
+          .from("tasks")
+          .update({ done: true, updated_at: new Date().toISOString() })
+          .eq("id", taskId);
+
+        if (uErr) throw uErr;
+
+        return ok(textContent({ success: true, id: taskId, done: true }));
       }
 
       return rpcError(-32601, `Unknown tool: ${toolName}`);
