@@ -140,6 +140,19 @@ const TOOLS = [
     },
   },
   {
+    name: "delete_discussion",
+    description:
+      "Permanently delete a discussion by ID. Use list_discussions to get the ID. " +
+      "This action cannot be undone.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Discussion ID (required)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "create_discussion",
     description:
       "Create a new discussion. Only the name is required. " +
@@ -447,6 +460,21 @@ Deno.serve(async (req) => {
         if (uErr) throw uErr;
 
         return ok(textContent({ success: true, id: discussionId, updated: patch }));
+      }
+
+      // ---- delete_discussion -----------------------------------------------
+      if (toolName === "delete_discussion") {
+        const discussionId = typeof args.id === "string" ? args.id.trim() : "";
+        if (!discussionId) return rpcError(-32602, "id is required");
+
+        const { error: dErr } = await supabase
+          .from("discussions")
+          .delete()
+          .eq("id", discussionId);
+
+        if (dErr) throw dErr;
+
+        return ok(textContent({ success: true, id: discussionId }));
       }
 
       // ---- create_discussion -----------------------------------------------
