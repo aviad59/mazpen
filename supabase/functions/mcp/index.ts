@@ -140,6 +140,42 @@ const TOOLS = [
     },
   },
   {
+    name: "create_discussion",
+    description:
+      "Create a new discussion. Only the name is required. " +
+      "participantIds must be valid participant IDs from list_discussions. " +
+      "If participants are provided and the discussion is not a פ\"ע/פ\"א type, a leaderId is required. " +
+      "dateWindow defaults to 'unspecified' if not provided.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Discussion name (required)" },
+        dateWindow: {
+          type: "string",
+          enum: ["this_week", "next_week", "later", "in_a_month", "unspecified"],
+          description: "Scheduling window (default: unspecified)",
+        },
+        participantIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of participant IDs",
+        },
+        leaderId: { type: "string", description: "Participant ID of the leader (required if participants provided, unless פ\"ע/פ\"א)" },
+        requiresSummary: { type: "boolean", description: "Whether a written summary is required after the discussion (default: true)" },
+        requiresSubstrate: { type: "boolean", description: "Whether prep material (מצע) is required (default: true)" },
+        recurrence: {
+          type: "string",
+          enum: ["none", "twice_weekly", "thrice_weekly", "weekly", "biweekly", "triweekly", "monthly"],
+          description: "How often the discussion repeats (default: none)",
+        },
+        durationMinutes: { type: "number", description: "Duration in minutes" },
+        notes: { type: "string", description: "Notes / context" },
+        important: { type: "boolean", description: "Pin as high priority" },
+      },
+      required: ["name"],
+    },
+  },
+  {
     name: "create_task",
     description:
       "Create a new task. Only the title is required. " +
@@ -411,6 +447,64 @@ Deno.serve(async (req) => {
         if (uErr) throw uErr;
 
         return ok(textContent({ success: true, id: discussionId, updated: patch }));
+      }
+
+      // ---- create_discussion -----------------------------------------------
+      if (toolName === "create_discussion") {
+        const name = typeof args.name === "string" ? args.name.trim() : "";
+        if (!name) return rpcError(-32602, "name is required and must be a non-empty string");
+
+        const dateWindow = (typeof args.dateWindow === "string" && VALID_DATE_WINDOWS.has(args.dateWindow))
+          ? args.dateWindow
+          : "unspecified";
+
+        const participantIds: string[] = Array.isArray(args.participantIds) ? args.participantIds : [];
+        const leaderId = typeof args.leaderId === "string" && args.leaderId.trim() ? args.leaderId.trim() : null;
+
+        // Detect פ"ע / פ"א — same heuristic as the app
+        const isPE = /פ[""']?[עא]/.test(name);
+
+        if (!isPE && participantIds.length > 0 && !leaderId) {
+          return rpcError(-32602, "leaderId is required when participants are provided (unless פ\"ע/פ\"א)");
+        }
+        if (leaderId && participantIds.length > 0 && !participantIds.includes(leaderId)) {
+          return rpcError(-32602, "leaderId must be one of the participantIds");
+        }
+
+        const scheduledWeek = scheduledWeekForWindow(dateWindow);
+        const now = new Date().toISOString();
+        const newId = `disc-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+        const histId = `h-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+
+        const row = {
+          id: newId,
+          name,
+          status: "new",
+          date_window: dateWindow,
+          scheduled_week: scheduledWeek,
+          participant_ids: participantIds,
+          extra_participants: null,
+          optional_participant_ids: null,
+          leader_id: isPE ? null : leaderId,
+          requires_summary: typeof args.requiresSummary === "boolean" ? args.requiresSummary : true,
+          requires_substrate: typeof args.requiresSubstrate === "boolean" ? args.requiresSubstrate : true,
+          requires_bashi_review: false,
+          recurrence: typeof args.recurrence === "string" ? args.recurrence : "none",
+          duration_minutes: typeof args.durationMinutes === "number" && args.durationMinutes > 0 ? args.durationMinutes : null,
+          notes: typeof args.notes === "string" && args.notes.trim() ? args.notes.trim() : null,
+          summary: null,
+          driving_time_preference: false,
+          important: typeof args.important === "boolean" ? args.important : false,
+          cycles: [],
+          history: [{ id: histId, kind: "created", at: now, text: "הדיון נוצר על ידי סוכן AI" }],
+          created_at: now,
+          updated_at: now,
+        };
+
+        const { error: iErr } = await supabase.from("discussions").insert(row);
+        if (iErr) throw iErr;
+
+        return ok(textContent({ success: true, id: newId, name, status: "new", dateWindow }));
       }
 
       // ---- create_task -----------------------------------------------------
