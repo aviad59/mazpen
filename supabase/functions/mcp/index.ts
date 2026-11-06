@@ -358,7 +358,7 @@ Deno.serve(async (req) => {
     try {
       // ---- list_discussions ------------------------------------------------
       if (toolName === "list_discussions") {
-        const [{ data: discussions, error: dErr }, { data: participants }] = await Promise.all([
+        const [{ data: discussions, error: dErr }, { data: participants, error: pErr1 }] = await Promise.all([
           supabase
             .from("discussions")
             .select(
@@ -370,6 +370,7 @@ Deno.serve(async (req) => {
         ]);
 
         if (dErr) throw dErr;
+        if (pErr1) throw pErr1;
 
         const pMap = buildParticipantMap(participants ?? []);
 
@@ -403,7 +404,7 @@ Deno.serve(async (req) => {
 
       // ---- list_requests ---------------------------------------------------
       if (toolName === "list_requests") {
-        const [{ data: requests, error: rErr }, { data: participants }] = await Promise.all([
+        const [{ data: requests, error: rErr }, { data: participants, error: pErr2 }] = await Promise.all([
           supabase
             .from("discussion_requests")
             .select(
@@ -415,6 +416,7 @@ Deno.serve(async (req) => {
         ]);
 
         if (rErr) throw rErr;
+        if (pErr2) throw pErr2;
 
         const pMap = buildParticipantMap(participants ?? []);
 
@@ -435,7 +437,7 @@ Deno.serve(async (req) => {
 
       // ---- list_tasks ------------------------------------------------------
       if (toolName === "list_tasks") {
-        const [{ data: tasks, error: tErr }, { data: participants }] = await Promise.all([
+        const [{ data: tasks, error: tErr }, { data: participants, error: pErr3 }] = await Promise.all([
           supabase
             .from("tasks")
             .select("id,title,description,responsible_id,done,created_at,updated_at")
@@ -444,6 +446,7 @@ Deno.serve(async (req) => {
         ]);
 
         if (tErr) throw tErr;
+        if (pErr3) throw pErr3;
 
         const pMap = buildParticipantMap(participants ?? []);
 
