@@ -180,7 +180,7 @@ export function DiscussionDetail({ open, discussion, onClose, isBashiUser }: Pro
   }
 
   function discussionShareUrl() {
-    return `${window.location.origin}/?id=${encodeURIComponent(d.id)}`;
+    return `${window.location.origin}/api/share?id=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`;
   }
 
   async function handleCopyLink() {

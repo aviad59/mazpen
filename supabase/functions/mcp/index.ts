@@ -99,7 +99,9 @@ const TOOLS = [
       "Return all active discussions that are either in planning (new) or coordinated (coordinated). " +
       "Each item includes the discussion name, scheduling window, participants with their roles, " +
       "the designated leader, duration, notes, and whether it is marked as important. " +
-      "Discussions that have already occurred, been distributed, or were cancelled are excluded.",
+      "Discussions that have already occurred, been distributed, or were cancelled are excluded. " +
+      "Each item has a `url` that opens the discussion in the app — include it whenever you " +
+      "mention or send a discussion to someone.",
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
@@ -305,6 +307,13 @@ function resolveParticipant(id: string, map: Map<string, AnyRow>) {
     : { id, name: "Unknown" };
 }
 
+/** Share link with a name preview for chat apps; undefined when APP_URL isn't configured. */
+function discussionUrl(id: string, name: string): string | undefined {
+  const appUrl = Deno.env.get("APP_URL")?.replace(/\/+$/, "");
+  if (!appUrl) return undefined;
+  return `${appUrl}/api/share?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
+}
+
 function textContent(data: unknown) {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
 }
@@ -407,6 +416,7 @@ Deno.serve(async (req) => {
         const result = (discussions ?? []).map((d: AnyRow) => ({
           id: d.id,
           name: d.name,
+          url: discussionUrl(d.id as string, d.name as string),
           status: d.status,
           statusLabel: STATUS_LABEL[d.status as string] ?? d.status,
           dateWindow: d.date_window,
@@ -668,7 +678,14 @@ Deno.serve(async (req) => {
         if (uErr) throw uErr;
 
         const { history: _history, ...updated } = patch;
-        return ok(textContent({ success: true, id: discussionId, updated }));
+        return ok(
+          textContent({
+            success: true,
+            id: discussionId,
+            url: discussionUrl(discussionId, (patch.name as string | undefined) ?? (cur.name as string)),
+            updated,
+          })
+        );
       }
 
       // ---- delete_discussion -----------------------------------------------
@@ -753,7 +770,9 @@ Deno.serve(async (req) => {
         const { error: iErr } = await supabase.from("discussions").insert(row);
         if (iErr) throw iErr;
 
-        return ok(textContent({ success: true, id: newId, name, status: "new", dateWindow }));
+        return ok(
+          textContent({ success: true, id: newId, name, url: discussionUrl(newId, name), status: "new", dateWindow })
+        );
       }
 
       // ---- create_task -----------------------------------------------------
