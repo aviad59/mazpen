@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   Clock,
-  Copy,
   FileStack,
   Link,
   MessageSquare,
@@ -38,7 +37,6 @@ interface Props {
   open: boolean;
   discussion: Discussion | null;
   onClose: () => void;
-  onDuplicate?: (template: Discussion) => void;
   isBashiUser?: boolean;
 }
 
@@ -87,7 +85,7 @@ const EMPTY_EDIT: EditState = {
   requiresBashiReview: false,
 };
 
-export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBashiUser }: Props) {
+export function DiscussionDetail({ open, discussion, onClose, isBashiUser }: Props) {
   const { lookupParticipant, updateDiscussion, changeStatus, setDateWindow, removeDiscussion, addNote } = useStore();
 
   const [editing, setEditing] = React.useState(false);
@@ -187,11 +185,12 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
 
   async function handleCopyLink() {
     const url = discussionShareUrl();
+    const text = `${d.name}\n${url}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(text);
     } catch {
       const ta = document.createElement("textarea");
-      ta.value = url;
+      ta.value = text;
       ta.style.cssText = "position:fixed;opacity:0";
       document.body.appendChild(ta);
       ta.focus();
@@ -246,11 +245,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       >
         {copied ? <CheckCircle2 size={16} /> : <Share2 size={16} />}
       </Button>
-      {onDuplicate && (
-        <Button variant="ghost" size="icon" onClick={() => onDuplicate(d)} title="שכפל דיון">
-          <Copy size={16} />
-        </Button>
-      )}
+
       <Button variant="ghost" size="icon" onClick={handleDelete} title={T.delete} className="text-destructive">
         <Trash2 size={16} />
       </Button>

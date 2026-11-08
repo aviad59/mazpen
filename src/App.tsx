@@ -146,20 +146,6 @@ export default function App() {
     }
   }
 
-  function handleDuplicate(d: Discussion) {
-    setTemplate({
-      name: d.name + " (עותק)",
-      participantIds: d.participantIds,
-      leaderId: d.leaderId,
-      requiresSummary: d.requiresSummary,
-      requiresSubstrate: d.requiresSubstrate,
-      recurrence: d.recurrence,
-      dateWindow: d.dateWindow,
-      notes: d.notes,
-    });
-    setOpenId(null);
-    setAddOpen(true);
-  }
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-background text-foreground flex flex-col">
@@ -220,7 +206,6 @@ export default function App() {
         open={!!openDiscussion}
         discussion={openDiscussion}
         onClose={() => setOpenId(null)}
-        onDuplicate={handleDuplicate}
         isBashiUser={isBashiUser}
       />
 
