@@ -48,6 +48,17 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "בוטל",
 };
 
+// Same short labels the app uses in history entries (useStore.statusLabelFor)
+const STATUS_SHORT_LABEL: Record<string, string> = {
+  new: "חדש",
+  coordinated: "תואם",
+  occurred: "התקיים",
+  waiting_summary: "מחכה לסיכום",
+  waiting_approval: "האם אושר סיכום",
+  distributed: "הופץ",
+  cancelled: "בוטל",
+};
+
 const VALID_STATUSES = new Set(Object.keys(STATUS_LABEL));
 const VALID_DATE_WINDOWS = new Set(["this_week", "next_week", "later", "in_a_month", "unspecified"]);
 
@@ -177,6 +188,12 @@ const TOOLS = [
         leaderId: { type: "string", description: "Participant ID of the new leader. Pass empty string to clear." },
         durationMinutes: { type: "number", description: "Meeting duration in minutes. Pass 0 to clear." },
         important: { type: "boolean", description: "Mark or unmark as important" },
+        requestedBy: {
+          type: "string",
+          description:
+            "Name of the person who asked you to make this change. Recorded in the discussion history " +
+            "next to the AI marker. Always pass it when you know who asked.",
+        },
       },
       required: ["id"],
     },
@@ -557,6 +574,30 @@ Deno.serve(async (req) => {
           return rpcError(-32602, "No fields to update — provide at least one field besides id");
         }
 
+        if (patch.status) {
+          const { data: current, error: cErr } = await supabase
+            .from("discussions")
+            .select("status,history")
+            .eq("id", discussionId)
+            .single();
+          if (cErr) throw cErr;
+
+          const from = (current as AnyRow).status as string;
+          if (from !== patch.status) {
+            const requestedBy =
+              typeof args.requestedBy === "string" && args.requestedBy.trim() ? args.requestedBy.trim() : null;
+            const event = {
+              id: `h-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`,
+              kind: "status_changed",
+              at: patch.updated_at,
+              by: requestedBy ? `סוכן AI (לבקשת ${requestedBy})` : "סוכן AI",
+              text: `סטטוס: ${STATUS_SHORT_LABEL[from] ?? from} ← ${STATUS_SHORT_LABEL[patch.status] ?? patch.status}`,
+              meta: { from, to: patch.status, source: "ai", requestedBy },
+            };
+            patch.history = [...(((current as AnyRow).history as unknown[]) ?? []), event];
+          }
+        }
+
         const { error: uErr } = await supabase
           .from("discussions")
           .update(patch)
@@ -564,7 +605,8 @@ Deno.serve(async (req) => {
 
         if (uErr) throw uErr;
 
-        return ok(textContent({ success: true, id: discussionId, updated: patch }));
+        const { history: _history, ...updated } = patch;
+        return ok(textContent({ success: true, id: discussionId, updated }));
       }
 
       // ---- delete_discussion -----------------------------------------------
