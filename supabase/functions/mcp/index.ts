@@ -59,6 +59,15 @@ const STATUS_SHORT_LABEL: Record<string, string> = {
   cancelled: "בוטל",
 };
 
+// Same labels the app uses in window_changed history entries (he.ts WINDOW_LABEL)
+const WINDOW_HISTORY_LABEL: Record<string, string> = {
+  this_week: "השבוע",
+  next_week: "שבוע הבא",
+  later: "שבועיים עד חודש",
+  in_a_month: "בעוד חודש",
+  unspecified: "לא קבוע",
+};
+
 const VALID_STATUSES = new Set(Object.keys(STATUS_LABEL));
 const VALID_DATE_WINDOWS = new Set(["this_week", "next_week", "later", "in_a_month", "unspecified"]);
 
@@ -191,8 +200,8 @@ const TOOLS = [
         requestedBy: {
           type: "string",
           description:
-            "Name of the person who asked you to make this change. Recorded in the discussion history " +
-            "next to the AI marker. Always pass it when you know who asked.",
+            "Name of the person who asked you to make this change. Every change is recorded in the discussion " +
+            "history as made by the AI agent; this name is shown alongside. Always pass it when you know who asked.",
         },
       },
       required: ["id"],
@@ -243,6 +252,10 @@ const TOOLS = [
         durationMinutes: { type: "number", description: "Duration in minutes" },
         notes: { type: "string", description: "Notes / context" },
         important: { type: "boolean", description: "Pin as high priority" },
+        requestedBy: {
+          type: "string",
+          description: "Name of the person who asked you to create this discussion. Shown in the history.",
+        },
       },
       required: ["name"],
     },
@@ -574,28 +587,77 @@ Deno.serve(async (req) => {
           return rpcError(-32602, "No fields to update — provide at least one field besides id");
         }
 
-        if (patch.status) {
-          const { data: current, error: cErr } = await supabase
-            .from("discussions")
-            .select("status,history")
-            .eq("id", discussionId)
-            .single();
-          if (cErr) throw cErr;
+        const { data: currentRow, error: cErr } = await supabase
+          .from("discussions")
+          .select("name,status,date_window,notes,leader_id,duration_minutes,important,history")
+          .eq("id", discussionId)
+          .single();
+        if (cErr) throw cErr;
+        const cur = currentRow as AnyRow;
 
-          const from = (current as AnyRow).status as string;
-          if (from !== patch.status) {
-            const requestedBy =
-              typeof args.requestedBy === "string" && args.requestedBy.trim() ? args.requestedBy.trim() : null;
-            const event = {
-              id: `h-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`,
-              kind: "status_changed",
-              at: patch.updated_at,
-              by: requestedBy ? `סוכן AI (לבקשת ${requestedBy})` : "סוכן AI",
-              text: `סטטוס: ${STATUS_SHORT_LABEL[from] ?? from} ← ${STATUS_SHORT_LABEL[patch.status] ?? patch.status}`,
-              meta: { from, to: patch.status, source: "ai", requestedBy },
-            };
-            patch.history = [...(((current as AnyRow).history as unknown[]) ?? []), event];
-          }
+        const requestedBy =
+          typeof args.requestedBy === "string" && args.requestedBy.trim() ? args.requestedBy.trim() : null;
+        const by = requestedBy ? `סוכן AI (לבקשת ${requestedBy})` : "סוכן AI";
+        const events: AnyRow[] = [];
+        const addEvent = (kind: string, text: string, meta: AnyRow = {}) =>
+          events.push({
+            id: `h-${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`,
+            kind,
+            at: patch.updated_at,
+            by,
+            text,
+            meta: { ...meta, source: "ai", requestedBy },
+          });
+
+        if ("status" in patch && patch.status !== cur.status) {
+          addEvent(
+            "status_changed",
+            `סטטוס: ${STATUS_SHORT_LABEL[cur.status] ?? cur.status} ← ${STATUS_SHORT_LABEL[patch.status] ?? patch.status}`,
+            { from: cur.status, to: patch.status }
+          );
+        }
+
+        if ("date_window" in patch && patch.date_window !== cur.date_window) {
+          addEvent(
+            "window_changed",
+            `מסגרת זמן: ${WINDOW_HISTORY_LABEL[cur.date_window] ?? cur.date_window} ← ${WINDOW_HISTORY_LABEL[patch.date_window] ?? patch.date_window}`,
+            { from: cur.date_window, to: patch.date_window }
+          );
+        }
+
+        // Remaining fields → one "edited" entry, same wording as the app (src/lib/historyDiff.ts)
+        const edits: string[] = [];
+        if ("name" in patch && patch.name !== cur.name) {
+          edits.push(`שם הדיון שונה מ-"${cur.name}" ל-"${patch.name}"`);
+        }
+        if ("leader_id" in patch && patch.leader_id !== cur.leader_id) {
+          const ids = [cur.leader_id, patch.leader_id].filter(Boolean) as string[];
+          const { data: leaders } = ids.length
+            ? await supabase.from("participants").select("id,name").in("id", ids)
+            : { data: [] };
+          const nameOf = (id: string | null) =>
+            id ? (((leaders ?? []) as AnyRow[]).find((p) => p.id === id)?.name as string) ?? id : null;
+          const oldName = nameOf(cur.leader_id);
+          const newName = nameOf(patch.leader_id);
+          if (oldName && newName) edits.push(`מוביל הדיון שונה מ-${oldName} ל-${newName}`);
+          else if (newName) edits.push(`הוגדר מוביל: ${newName}`);
+          else if (oldName) edits.push(`בוטל המוביל (היה ${oldName})`);
+        }
+        if ("duration_minutes" in patch && patch.duration_minutes !== cur.duration_minutes) {
+          if (patch.duration_minutes === null) edits.push("משך הדיון הוסר");
+          else if (cur.duration_minutes === null) edits.push(`נקבע משך הדיון: ${patch.duration_minutes} דקות`);
+          else edits.push(`משך הדיון שונה מ-${cur.duration_minutes} ל-${patch.duration_minutes} דקות`);
+        }
+        if ("notes" in patch && (patch.notes ?? "") !== (cur.notes ?? "")) {
+          edits.push("ההערות עודכנו");
+        }
+        if ("important" in patch && patch.important !== (cur.important ?? false)) {
+          edits.push(patch.important ? "סומן כחשוב" : "בוטל סימון חשוב");
+        }
+        if (edits.length) addEvent("edited", edits.join("\n"));
+
+        if (events.length) {
+          patch.history = [...((cur.history as unknown[]) ?? []), ...events];
         }
 
         const { error: uErr } = await supabase
@@ -671,7 +733,19 @@ Deno.serve(async (req) => {
           driving_time_preference: false,
           important: typeof args.important === "boolean" ? args.important : false,
           cycles: [],
-          history: [{ id: histId, kind: "created", at: now, text: "הדיון נוצר על ידי סוכן AI" }],
+          history: [
+            {
+              id: histId,
+              kind: "created",
+              at: now,
+              text: "הדיון נוצר",
+              by:
+                typeof args.requestedBy === "string" && args.requestedBy.trim()
+                  ? `סוכן AI (לבקשת ${args.requestedBy.trim()})`
+                  : "סוכן AI",
+              meta: { source: "ai" },
+            },
+          ],
           created_at: now,
           updated_at: now,
         };
