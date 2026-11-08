@@ -7,6 +7,7 @@ import {
   Clock,
   Copy,
   FileStack,
+  Link,
   MessageSquare,
   Send,
   Share2,
@@ -234,7 +235,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
         title={copiedLink ? "הועתק!" : "העתק קישור"}
         className={cn(copiedLink && "text-green-500")}
       >
-        {copiedLink ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+        {copiedLink ? <CheckCircle2 size={16} /> : <Link size={16} />}
       </Button>
       <Button
         variant="ghost"
