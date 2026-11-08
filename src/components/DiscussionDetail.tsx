@@ -93,6 +93,7 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
   const [edit, setEdit] = React.useState<EditState>(EMPTY_EDIT);
   const [note, setNote] = React.useState("");
   const [copied, setCopied] = React.useState(false);
+  const [copiedLink, setCopiedLink] = React.useState(false);
 
   React.useEffect(() => {
     if (!discussion) return;
@@ -179,32 +180,39 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
     await updateDiscussion(d.id, { important: !d.important });
   }
 
-  async function handleShare() {
-    const shareUrl = `${window.location.origin}/api/share?id=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: d.name, text: `${d.name}\n${shareUrl}` });
-        return;
-      } catch {
-        // User cancelled or share failed — fall through to clipboard
-      }
-    }
+  function discussionShareUrl() {
+    return `${window.location.origin}/?id=${encodeURIComponent(d.id)}`;
+  }
+
+  async function handleCopyLink() {
+    const url = discussionShareUrl();
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(url);
     } catch {
-      // Clipboard not available — use legacy execCommand
       const ta = document.createElement("textarea");
-      ta.value = shareUrl;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
+      ta.value = url;
+      ta.style.cssText = "position:fixed;opacity:0";
       document.body.appendChild(ta);
       ta.focus();
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
+
+  async function handleShare() {
+    const shareUrl = discussionShareUrl();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: d.name, url: shareUrl });
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+    await handleCopyLink();
   }
 
   const footer = !editing ? (
@@ -222,8 +230,17 @@ export function DiscussionDetail({ open, discussion, onClose, onDuplicate, isBas
       <Button
         variant="ghost"
         size="icon"
+        onClick={handleCopyLink}
+        title={copiedLink ? "הועתק!" : "העתק קישור"}
+        className={cn(copiedLink && "text-green-500")}
+      >
+        {copiedLink ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={handleShare}
-        title={copied ? "הועתק!" : "שתף קישור"}
+        title="שתף"
         className={cn(copied && "text-green-500")}
       >
         {copied ? <CheckCircle2 size={16} /> : <Share2 size={16} />}
