@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
             )
             .in("status", ["new", "coordinated"])
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role,unit,phone,aliases"),
+          supabase.from("participants").select("*"),
         ]);
 
         if (dErr) throw dErr;
@@ -412,7 +412,7 @@ Deno.serve(async (req) => {
             )
             .eq("status", "pending")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,role,phone,aliases"),
+          supabase.from("participants").select("*"),
         ]);
 
         if (rErr) throw rErr;
@@ -442,7 +442,7 @@ Deno.serve(async (req) => {
             .from("tasks")
             .select("id,title,description,responsible_id,done,created_at,updated_at")
             .order("created_at", { ascending: false }),
-          supabase.from("participants").select("id,name,phone,aliases"),
+          supabase.from("participants").select("*"),
         ]);
 
         if (tErr) throw tErr;
@@ -469,7 +469,7 @@ Deno.serve(async (req) => {
       if (toolName === "list_participants") {
         const { data, error: pErr } = await supabase
           .from("participants")
-          .select("id,name,role,unit,phone,aliases,external,optional")
+          .select("*")
           .order("name", { ascending: true });
 
         if (pErr) throw pErr;
@@ -704,8 +704,15 @@ Deno.serve(async (req) => {
 
       return rpcError(-32601, `Unknown tool: ${toolName}`);
     } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e !== null
+          ? [(e as AnyRow).message, (e as AnyRow).details, (e as AnyRow).hint].filter(Boolean).join(" | ") ||
+            JSON.stringify(e)
+          : String(e);
       return new Response(
-        JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: String(e) }, id }),
+        JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message }, id }),
         { status: 500, headers: jsonHeaders }
       );
     }
