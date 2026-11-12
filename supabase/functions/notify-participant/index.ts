@@ -8,7 +8,7 @@
  * VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { adminClient, clampText, filterSubsToAllowedUsers, getAllowedCaller, unauthorized } from "../_shared/security.ts";
 import webpush from "npm:web-push";
 
 const corsHeaders = {
@@ -22,22 +22,26 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { participantName, creatorUserId } = await req.json() as {
+    const { participantName } = await req.json() as {
       participantName: string;
-      creatorUserId: string;
+      creatorUserId?: string; // ignored — derived from the verified token
     };
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabase = adminClient();
 
-    const { data: subs, error } = await supabase
+    // Only signed-in, allow-listed users may trigger notifications.
+    // The creator id comes from the verified token, not the request body.
+    const caller = await getAllowedCaller(req, supabase);
+    if (!caller) return unauthorized(corsHeaders);
+
+    const { data: allSubs, error } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, p256dh, auth")
-      .neq("user_id", creatorUserId);
+      .select("user_id, endpoint, p256dh, auth")
+      .neq("user_id", caller.id);
 
     if (error) throw error;
+    // Never push discussion details to users who are no longer allow-listed
+    const subs = await filterSubsToAllowedUsers(supabase, allSubs ?? []);
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -52,7 +56,7 @@ Deno.serve(async (req) => {
 
     const payload = JSON.stringify({
       title: "מצפן — משתתף חדש",
-      body: `נוסף משתתף: ${participantName}`,
+      body: `נוסף משתתף: ${clampText(participantName, 120)}`,
       url: "/",
     });
 
@@ -85,7 +89,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    console.error(err);
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

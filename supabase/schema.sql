@@ -71,47 +71,9 @@ alter table public.participants        enable row level security;
 alter table public.participant_groups  enable row level security;
 alter table public.discussions         enable row level security;
 
--- Drop old anon policies
-drop policy if exists "anon read participants"   on public.participants;
-drop policy if exists "anon write participants"  on public.participants;
-drop policy if exists "anon read discussions"    on public.discussions;
-drop policy if exists "anon write discussions"   on public.discussions;
-
--- Authenticated user policies for participants
-create policy "auth read participants"
-  on public.participants for select
-  to authenticated
-  using (true);
-
-create policy "auth write participants"
-  on public.participants for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- Authenticated user policies for participant_groups
-create policy "auth read participant_groups"
-  on public.participant_groups for select
-  to authenticated
-  using (true);
-
-create policy "auth write participant_groups"
-  on public.participant_groups for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- Authenticated user policies for discussions
-create policy "auth read discussions"
-  on public.discussions for select
-  to authenticated
-  using (true);
-
-create policy "auth write discussions"
-  on public.discussions for all
-  to authenticated
-  using (true)
-  with check (true);
+-- All access policies live in supabase/security_hardening.sql
+-- (access is restricted to users in public.allowed_emails).
+-- ALWAYS run security_hardening.sql after this file.
 
 -- ------------------------------------------------------------
 -- Push subscriptions (for PWA notifications)
@@ -127,15 +89,8 @@ create table if not exists public.push_subscriptions (
 
 alter table public.push_subscriptions enable row level security;
 
--- Users can only manage their own subscriptions
-create policy "own push subscriptions"
-  on public.push_subscriptions for all
-  to authenticated
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
-
--- Edge function (service_role) can read all subscriptions to send notifications
--- (service_role bypasses RLS by default — no extra policy needed)
+-- Policies: see security_hardening.sql (own rows only, allowed users only).
+-- Edge functions use service_role, which bypasses RLS.
 
 -- ------------------------------------------------------------
 -- Profiles (populated on each login so the user picker stays fresh)
@@ -149,16 +104,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
-create policy "auth read profiles"
-  on public.profiles for select
-  to authenticated
-  using (true);
-
-create policy "own profile write"
-  on public.profiles for all
-  to authenticated
-  using (id = auth.uid())
-  with check (id = auth.uid());
+-- Policies: see security_hardening.sql.
 
 -- ------------------------------------------------------------
 -- Tasks
@@ -175,16 +121,7 @@ create table if not exists public.tasks (
 
 alter table public.tasks enable row level security;
 
-create policy "auth read tasks"
-  on public.tasks for select
-  to authenticated
-  using (true);
-
-create policy "auth write tasks"
-  on public.tasks for all
-  to authenticated
-  using (true)
-  with check (true);
+-- Policies: see security_hardening.sql.
 
 -- ------------------------------------------------------------
 -- Migrations
@@ -212,24 +149,8 @@ alter table public.discussion_requests add column if not exists duration_minutes
 
 alter table public.discussion_requests enable row level security;
 
--- Anyone (unauthenticated) can submit a request
-create policy "anon insert requests"
-  on public.discussion_requests for insert
-  to anon
-  with check (true);
-
--- Authenticated users can read, update, delete requests
-create policy "auth manage requests"
-  on public.discussion_requests for all
-  to authenticated
-  using (true)
-  with check (true);
-
--- Allow anon users to read participants (needed for the public request form)
-create policy "anon read participants"
-  on public.participants for select
-  to anon
-  using (true);
+-- Policies (anon may submit; allowed users manage; anon reads only
+-- participant id/name/role/unit): see security_hardening.sql.
 
 -- ------------------------------------------------------------
 -- Access control (replaces client-side allowlist)
@@ -240,10 +161,7 @@ create table if not exists public.allowed_emails (
 
 alter table public.allowed_emails enable row level security;
 
-create policy "authenticated can read allowed_emails"
-  on public.allowed_emails for select
-  to authenticated
-  using (true);
+-- Policies (each user sees only their own row): see security_hardening.sql.
 
 -- Seed with initial allowed users (safe to re-run)
 insert into public.allowed_emails (email) values

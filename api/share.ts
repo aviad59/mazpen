@@ -23,9 +23,9 @@ const CRAWLER_AGENTS = [
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function handler(req: any, res: any) {
-  const id = String(req.query?.id ?? "");
-  const rawName = String(req.query?.name ?? "");
-  const name = (() => { try { return decodeURIComponent(rawName); } catch { return rawName; } })();
+  const id = String(req.query?.id ?? "").slice(0, 100);
+  const rawName = String(req.query?.name ?? "").slice(0, 600);
+  const name = (() => { try { return decodeURIComponent(rawName); } catch { return rawName; } })().slice(0, 200);
 
   const ua = String(req.headers?.["user-agent"] ?? "").toLowerCase();
   const isCrawler = CRAWLER_AGENTS.some((a) => ua.includes(a));
@@ -34,8 +34,10 @@ export default function handler(req: any, res: any) {
   const proto = host.startsWith("localhost") ? "http" : "https";
   const origin = `${proto}://${host}`;
 
+  // Relative redirect: never send users to a host taken from request headers.
+  const appPath = `/?id=${encodeURIComponent(id)}`;
   if (!isCrawler) {
-    res.redirect(302, `${origin}/?id=${encodeURIComponent(id)}`);
+    res.redirect(302, appPath);
     return;
   }
 
@@ -58,7 +60,7 @@ export default function handler(req: any, res: any) {
   <meta name="twitter:title" content="${escapeHtml(title)}" />
 </head>
 <body>
-  <script>window.location.replace(${JSON.stringify(`${origin}/?id=${encodeURIComponent(id)}`)});</script>
+  <script>window.location.replace(${JSON.stringify(appPath).replace(/</g, "\\u003c")});</script>
   <p>מעביר לדיון...</p>
 </body>
 </html>`);

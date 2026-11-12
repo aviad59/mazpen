@@ -6,7 +6,7 @@
  * plus a single write operation: create_task.
  *
  * Authentication: Bearer token matched against the MCP_API_KEY secret.
- * If MCP_API_KEY is not set the endpoint is open (useful during dev).
+ * If MCP_API_KEY is not set the endpoint rejects every request (fail closed).
  *
  * Deploy:
  *   supabase functions deploy mcp
@@ -322,22 +322,31 @@ function textContent(data: unknown) {
 // Main handler
 // ---------------------------------------------------------------------------
 
+/** Constant-time string comparison so the API key can't be guessed by timing. */
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const x = enc.encode(a);
+  const y = enc.encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   // --- Auth ---
+  // Fail closed: if MCP_API_KEY is missing, nobody gets in.
   const apiKey = Deno.env.get("MCP_API_KEY");
-  if (apiKey) {
-    const authHeader = req.headers.get("authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (token !== apiKey) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: jsonHeaders,
-      });
-    }
+  const authHeader = req.headers.get("authorization") ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!apiKey || !timingSafeEqual(token, apiKey)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: jsonHeaders,
+    });
   }
 
   // --- Parse request ---
