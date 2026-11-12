@@ -10,11 +10,13 @@
  * VAPID_SUBJECT      — mailto: or https: URI, e.g. "mailto:admin@example.com"
  */
 
-import webpush from "npm:web-push";
+import webpush from "npm:web-push@3.6.7";
 
 // ---- security helpers (kept inline: the API deploy doesn't bundle shared folders) ----
 // Callers must be signed in AND on allowed_emails; pushes go only to allow-listed users.
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 
 function adminClient(): SupabaseClient {
   return createClient(
@@ -107,7 +109,10 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
     // Never push discussion details to users who are no longer allow-listed
-    const subs = await filterSubsToAllowedUsers(supabase, allSubs ?? []);
+    const subs = await filterSubsToAllowedUsers(
+      supabase,
+      (allSubs ?? []) as { user_id: string; endpoint: string; p256dh: string; auth: string }[]
+    );
     if (!subs || subs.length === 0) {
       return new Response(JSON.stringify({ sent: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
