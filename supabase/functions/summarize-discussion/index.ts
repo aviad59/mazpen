@@ -21,6 +21,46 @@
  * Deployed via the deploy-supabase-functions.yml CI workflow.
  */
 
+// ---- security helpers (kept inline: the API deploy doesn't bundle shared folders) ----
+// Callers must be signed in AND on allowed_emails.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
+
+function adminClient(): SupabaseClient {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+
+async function loadAllowedEmails(admin: SupabaseClient): Promise<Set<string>> {
+  const { data, error } = await admin.from("allowed_emails").select("email");
+  if (error) throw error;
+  return new Set((data ?? []).map((r: { email: string }) => r.email.trim().toLowerCase()));
+}
+
+/** Returns the verified, allow-listed caller, or null if the request must be rejected. */
+async function getAllowedCaller(
+  req: Request,
+  admin: SupabaseClient
+): Promise<{ id: string; email: string } | null> {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  const email = data?.user?.email?.trim().toLowerCase();
+  if (error || !data?.user || !email) return null;
+  const allowed = await loadAllowedEmails(admin);
+  return allowed.has(email) ? { id: data.user.id, email } : null;
+}
+
+/** Trims and caps user-supplied text that ends up in prompts (keeps newlines). */
+function clampText(v: unknown, max: number): string {
+  return String(v ?? "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, max);
+}
+// ---- end security helpers ----
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -77,6 +117,12 @@ Deno.serve(async (req) => {
   }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  try {
+    if (!(await getAllowedCaller(req, adminClient()))) return json({ error: "Unauthorized" }, 401);
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured" }, 500);
   const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
@@ -88,15 +134,20 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  const transcript = (body.transcript ?? "").trim();
+  const transcript = clampText(String(body.transcript ?? "").slice(-MAX_TRANSCRIPT_CHARS), MAX_TRANSCRIPT_CHARS);
   if (!transcript) return json({ error: "Transcript is empty" }, 400);
 
-  const participants = (body.participants ?? []).filter(Boolean).join(", ") || "לא צוינו";
+  const participants =
+    (Array.isArray(body.participants) ? body.participants : [])
+      .map((n) => clampText(n, 80))
+      .filter(Boolean)
+      .slice(0, 80)
+      .join(", ") || "לא צוינו";
   const userText =
-    `שם הדיון: ${body.discussionName || "לא צוין"}\n` +
+    `שם הדיון: ${clampText(body.discussionName, 200) || "לא צוין"}\n` +
     `משתתפים: ${participants}\n` +
-    `הבכיר שמסכם את הדיון: ${body.seniorName || "לא צוין"}\n\n` +
-    `תמלול:\n${transcript.slice(-MAX_TRANSCRIPT_CHARS)}`;
+    `הבכיר שמסכם את הדיון: ${clampText(body.seniorName, 80) || "לא צוין"}\n\n` +
+    `תמלול:\n${transcript}`;
 
   try {
     const res = await fetch(

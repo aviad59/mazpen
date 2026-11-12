@@ -21,6 +21,46 @@
  *   GEMINI_TRANSCRIBE_MODEL    – optional, defaults to "gemini-2.5-flash"
  */
 
+// ---- security helpers (kept inline: the API deploy doesn't bundle shared folders) ----
+// Callers must be signed in AND on allowed_emails.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
+
+function adminClient(): SupabaseClient {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
+}
+
+async function loadAllowedEmails(admin: SupabaseClient): Promise<Set<string>> {
+  const { data, error } = await admin.from("allowed_emails").select("email");
+  if (error) throw error;
+  return new Set((data ?? []).map((r: { email: string }) => r.email.trim().toLowerCase()));
+}
+
+/** Returns the verified, allow-listed caller, or null if the request must be rejected. */
+async function getAllowedCaller(
+  req: Request,
+  admin: SupabaseClient
+): Promise<{ id: string; email: string } | null> {
+  const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  const email = data?.user?.email?.trim().toLowerCase();
+  if (error || !data?.user || !email) return null;
+  const allowed = await loadAllowedEmails(admin);
+  return allowed.has(email) ? { id: data.user.id, email } : null;
+}
+
+/** Trims and caps user-supplied text that ends up in prompts. */
+function clampText(v: unknown, max: number): string {
+  return String(v ?? "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, max);
+}
+// ---- end security helpers ----
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -67,6 +107,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  try {
+    if (!(await getAllowedCaller(req, adminClient()))) return json({ error: "Unauthorized" }, 401);
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : String(err) }, 500);
+  }
+
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured", code: "not_configured" }, 500);
   const model = Deno.env.get("GEMINI_TRANSCRIBE_MODEL") || "gemini-2.5-flash";
@@ -89,12 +135,17 @@ Deno.serve(async (req) => {
   if (!audio) return json({ error: "Missing audio" }, 400);
   if (audio.length > MAX_AUDIO_B64) return json({ error: "Audio chunk too large" }, 413);
 
-  const names = (body.participants ?? []).filter(Boolean).slice(0, 80);
-  const vocab = (body.vocabulary ?? []).map((v) => v.trim()).filter(Boolean).slice(0, 200);
-  const previous = (body.previousText ?? "").slice(-600);
+  if (typeof audio !== "string" || !/^[A-Za-z0-9+/=]+$/.test(audio)) return json({ error: "Invalid audio" }, 400);
+  const mimeType = "audio/wav"; // the client always sends 16 kHz WAV
+
+  const asList = (v: unknown) => (Array.isArray(v) ? v : []);
+  const names = asList(body.participants).map((n) => clampText(n, 80)).filter(Boolean).slice(0, 80);
+  const vocab = asList(body.vocabulary).map((v) => clampText(v, 80)).filter(Boolean).slice(0, 200);
+  const previous = clampText(String(body.previousText ?? "").slice(-600), 600);
+  const discussionName = clampText(body.discussionName, 200);
 
   const context =
-    `Meeting: ${body.discussionName || "—"}\n` +
+    `Meeting: ${discussionName || "—"}\n` +
     `Participants: ${names.length ? names.join(", ") : "—"}\n` +
     `Glossary: ${vocab.length ? vocab.join(", ") : "—"}\n` +
     `Previous transcript (context only, do not repeat): ${previous || "—"}\n\n` +
@@ -117,7 +168,7 @@ Deno.serve(async (req) => {
               role: "user",
               parts: [
                 { text: context },
-                { inlineData: { mimeType: body.mimeType || "audio/wav", data: audio } },
+                { inlineData: { mimeType, data: audio } },
               ],
             },
           ],
