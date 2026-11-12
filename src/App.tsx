@@ -15,6 +15,7 @@ import { IOSInstallBanner } from "./components/IOSInstallBanner";
 import { EnableNotificationsBanner } from "./components/EnableNotificationsBanner";
 import { BashiReviewAlert } from "./components/BashiReviewAlert";
 import { TasksView } from "./components/TasksView";
+import { LiveSummaryView } from "./components/LiveSummaryView";
 import { useStore, setCurrentUserName } from "./store/useStore";
 import { loadTaskData } from "./store/useTaskStore";
 import { loadRequestData, useRequestStore } from "./store/useRequestStore";
@@ -169,6 +170,7 @@ export default function App() {
         {tab === "inbox" && <InboxView addOpen={addInboxOpen} onAddClose={() => setAddInboxOpen(false)} />}
         {tab === "archive" && <ArchiveView onOpenDiscussion={setOpenId} />}
         {tab === "tasks" && <TasksView addOpen={addTaskOpen} onAddClose={() => setAddTaskOpen(false)} />}
+        {tab === "live" && <LiveSummaryView />}
       </main>
 
       <BottomNav

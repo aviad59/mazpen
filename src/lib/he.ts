@@ -128,5 +128,6 @@ export const T = {
     archive: "ארכיון",
     tasks: "משימות",
     inbox: "בקשות",
+    live: "סיכום חי",
   },
 };

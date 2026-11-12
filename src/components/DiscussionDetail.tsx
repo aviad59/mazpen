@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Clock,
   FileStack,
+  FileText,
   Link,
   MessageSquare,
   Send,
@@ -384,6 +385,13 @@ export function DiscussionDetail({ open, discussion, onClose, isBashiUser }: Pro
                 ))}
               </ul>
             )}
+          </Card>
+        )}
+
+        {!editing && d.summary && (
+          <Card className="p-4">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2"><FileText size={14} /> סיכום</h3>
+            <p className="text-sm text-foreground/80 whitespace-pre-wrap">{d.summary}</p>
           </Card>
         )}
 
