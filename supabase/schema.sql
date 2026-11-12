@@ -163,13 +163,10 @@ alter table public.allowed_emails enable row level security;
 
 -- Policies (each user sees only their own row): see security_hardening.sql.
 
--- Seed with initial allowed users (safe to re-run)
-insert into public.allowed_emails (email) values
-  ('idanaviad10@gmail.com'),
-  ('liyamaoz1@gmail.com'),
-  ('rotembashi@gmail.com'),
-  ('lihistoff2@gmail.com')
-on conflict do nothing;
+-- Add allowed users directly in the SQL editor (do NOT commit real emails —
+-- this repository is public). Emails are matched case-insensitively.
+--   insert into public.allowed_emails (email) values ('someone@example.com')
+--   on conflict do nothing;
 
 -- Add phone number to participants (safe to re-run)
 alter table public.participants add column if not exists phone text;
