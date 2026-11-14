@@ -480,15 +480,18 @@ function discussionOut(d: AnyRow, pMap: Map<string, AnyRow>, full = false) {
     dateWindowLabel: DATE_WINDOW_LABEL[d.date_window as string] ?? d.date_window,
     scheduledWeek: d.scheduled_week ?? undefined,
     participants: ((d.participant_ids as string[]) ?? []).map((pid) => resolveParticipant(pid, pMap)),
+    // Clients (e.g. the WhatsApp agent) read optionalParticipantIds — keep it alongside the resolved list.
+    optionalParticipantIds: (d.optional_participant_ids as string[] | null) ?? undefined,
     optionalParticipants: ((d.optional_participant_ids as string[] | null) ?? []).length
       ? (d.optional_participant_ids as string[]).map((pid) => ({ id: pid, name: nameOf(pid, pMap) }))
       : undefined,
     extraParticipants: ((d.extra_participants as string[] | null) ?? []).length ? d.extra_participants : undefined,
+    // Every participant-like object keeps an id: clients key on it. A temporary leader's id is its name.
     leader: !leaderId
       ? undefined
       : pMap.has(leaderId)
       ? resolveParticipant(leaderId, pMap)
-      : { name: leaderId, temporary: true },
+      : { id: leaderId, name: leaderId, temporary: true },
     requiresSummary: d.requires_summary,
     requiresSubstrate: d.requires_substrate,
     requiresBashiReview: d.requires_bashi_review ?? false,
