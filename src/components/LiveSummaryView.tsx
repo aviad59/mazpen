@@ -587,7 +587,12 @@ export function LiveSummaryView() {
         const { data, error: fnError } = await supabase.functions.invoke("summarize-discussion", {
           body: { discussionName: discussion.name, participants: participantNames, seniorName: senior, transcript: text },
         });
-        if (fnError) throw new Error((await functionError(fnError)).message);
+        if (fnError) {
+          const { message, code } = await functionError(fnError);
+          throw new Error(
+            code === "not_configured" ? "הסיכום עם Claude עוד לא מוגדר בשרת (חסר ANTHROPIC_API_KEY ב-Supabase)." : message
+          );
+        }
         const next = (data as { summary?: string })?.summary;
         if (!next) throw new Error("לא התקבל סיכום");
         summarizedLenRef.current = text.length;
