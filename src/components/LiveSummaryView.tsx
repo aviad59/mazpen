@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Flag, Loader2, Mic, Pencil, Plus, RotateCcw, Save, Sparkles, Square, Trash2 } from "lucide-react";
+import { AlertTriangle, Flag, Loader2, Mic, Pencil, Plus, RotateCcw, Save, Sparkles, Square, Trash2, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { useStore } from "@/store/useStore";
@@ -50,7 +50,16 @@ function getRecognitionCtor(): SpeechRecognitionCtor | null {
  *  - "manual":  a note typed by the scribe during the discussion
  *  - "marker":  "the senior's closing summary starts here"
  */
-interface Segment { at: string; text: string; src?: "ai" | "browser" | "manual" | "marker" }
+interface Segment {
+  at: string;
+  text: string;
+  src?: "ai" | "browser" | "manual" | "marker";
+  /** Browser text already cleaned up by Claude (polish-transcript). */
+  polished?: boolean;
+}
+/** Browser-recognized lines that Claude hasn't cleaned up yet. */
+const needsPolish = (s: Segment) => (s.src === "browser" || s.src === undefined) && !s.polished && !!s.text.trim();
+const POLISH_BATCH = 150;
 interface Draft { segments: Segment[]; summary: string; senior?: string }
 
 const MARKER_TEXT = "=== מכאן: סיכום הבכיר ===";
@@ -76,7 +85,8 @@ interface Job {
 
 const DRAFT_KEY = (id: string) => `live-summary-draft:${id}`;
 const VOCAB_KEY = "live-summary-vocab";
-const ENGINE_KEY = "live-summary-ai-engine";
+/** Gemini audio transcription: off unless the user turns it on (needs a paid Gemini quota). */
+const ENGINE_KEY = "live-summary-gemini-audio";
 /** Browser results arrive a little after the words were spoken. */
 const PREVIEW_LAG_MS = 1500;
 /** Chunks with less detected speech than this are not sent (avoids hallucinations on silence). */
@@ -171,7 +181,8 @@ export function LiveSummaryView() {
   const [stats, setStats] = React.useState({ ai: 0, empty: 0 });
   const [listening, setListening] = React.useState(false);
   const [finalizing, setFinalizing] = React.useState(false);
-  const [useAI, setUseAI] = React.useState(() => aiSupported && readPref(ENGINE_KEY) !== "0");
+  const [useAI, setUseAI] = React.useState(() => aiSupported && readPref(ENGINE_KEY) === "1");
+  const [polishing, setPolishing] = React.useState(false);
   const [vocab, setVocab] = React.useState(() => readPref(VOCAB_KEY) ?? "");
   const [senior, setSenior] = React.useState("");
   const [note, setNote] = React.useState("");
@@ -202,6 +213,7 @@ export function LiveSummaryView() {
   const summarizedLenRef = React.useRef(0);
   const inFlightRef = React.useRef(false);
   const finalSummaryRef = React.useRef(false);
+  const finalPolishRef = React.useRef(false);
   const transcriptEndRef = React.useRef<HTMLDivElement | null>(null);
   const levelBarRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -429,7 +441,13 @@ export function LiveSummaryView() {
         fallbackToBrowser("תמלול ה-AI עוד לא מוגדר בשרת — ממשיך עם זיהוי הדיבור של הדפדפן.");
         return settle(job, null);
       }
-      // Rate limits (free-tier API keys): back off longer and retry a few times before giving up.
+      // A used-up daily quota won't recover by retrying — switch to the browser for this session.
+      const message = e instanceof Error ? e.message : String(e);
+      if (code === "rate_limited" && /per ?day|daily|retry in \d+h/i.test(message)) {
+        fallbackToBrowser("המכסה היומית של Gemini נגמרה — ממשיך עם זיהוי הדיבור של הדפדפן (Claude יתקן את הטקסט בסוף).");
+        return settle(job, null);
+      }
+      // Per-minute rate limits: back off longer and retry a few times before giving up.
       const maxTries = code === "rate_limited" ? 4 : 1;
       if (job.tries < maxTries) {
         job.tries++;
@@ -556,9 +574,9 @@ export function LiveSummaryView() {
   /* ---------------------------------------------------------------- */
 
   const summarize = React.useCallback(
-    async (opts: { force?: boolean } = {}) => {
+    async (opts: { force?: boolean; text?: string } = {}) => {
       if (!discussion || inFlightRef.current) return;
-      const text = transcript.trim();
+      const text = (opts.text ?? transcript).trim();
       if (!text) return;
       if (!opts.force && text.length <= summarizedLenRef.current) return;
 
@@ -590,16 +608,77 @@ export function LiveSummaryView() {
   const summarizeRef = React.useRef(summarize);
   summarizeRef.current = summarize;
 
-  // After stopping: once every chunk is transcribed, clear leftovers and run the final summary.
+  /**
+   * Sends the browser-recognized lines to Claude for cleanup (English words back in English,
+   * misrecognitions, punctuation, names). Returns the transcript with the fixes applied, or
+   * null if polishing failed (the original text is kept).
+   */
+  async function polishTranscript(): Promise<Segment[] | null> {
+    const base = segmentsRef.current;
+    const targets = base.filter(needsPolish);
+    if (!targets.length || !discussion) return base;
+    const ctx = contextRef.current;
+    const fixed = new Map<string, { from: string; to: string }>();
+    setPolishing(true);
+    try {
+      for (let k = 0; k < targets.length; k += POLISH_BATCH) {
+        const batch = targets.slice(k, k + POLISH_BATCH);
+        const { data, error: fnError } = await supabase.functions.invoke("polish-transcript", {
+          body: {
+            lines: batch.map((s) => s.text),
+            discussionName: ctx.discussionName,
+            participants: ctx.participants,
+            vocabulary: ctx.vocabulary,
+          },
+        });
+        if (fnError) {
+          const { message, code } = await functionError(fnError);
+          throw Object.assign(new Error(message), { code });
+        }
+        const lines = (data as { lines?: string[] })?.lines;
+        if (!Array.isArray(lines) || lines.length !== batch.length) throw new Error("התקבלה תשובה לא תקינה");
+        batch.forEach((s, j) => fixed.set(segKey(s), { from: s.text, to: lines[j] }));
+      }
+      // Apply to the current transcript — but never over a line the user edited meanwhile.
+      const apply = (list: Segment[]) =>
+        list.map((s) => {
+          const f = fixed.get(segKey(s));
+          return f && s.text === f.from ? { ...s, text: f.to, polished: true } : s;
+        });
+      setSegments((prev) => apply(prev));
+      return apply(segmentsRef.current);
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      setWarning(
+        code === "not_configured"
+          ? "שיפור התמלול עם Claude עוד לא מוגדר בשרת (חסר ANTHROPIC_API_KEY)."
+          : `שיפור התמלול נכשל: ${e instanceof Error ? e.message : String(e)}`
+      );
+      return null;
+    } finally {
+      setPolishing(false);
+    }
+  }
+  const polishRef = React.useRef(polishTranscript);
+  polishRef.current = polishTranscript;
+
+  // After stopping: once every chunk is transcribed, clear leftovers, let Claude polish the
+  // browser text, then run the final summary on the polished transcript.
   React.useEffect(() => {
     if (listening || finalizing || pending > 0) return;
     if (previewRef.current.length) {
       // Recording is over and all audio has been through the AI — whatever is left is a duplicate.
       setPreviewList([]);
     }
-    if (finalSummaryRef.current) {
+    if (finalPolishRef.current || finalSummaryRef.current) {
+      const doPolish = finalPolishRef.current;
+      const doSummary = finalSummaryRef.current;
+      finalPolishRef.current = false;
       finalSummaryRef.current = false;
-      setTimeout(() => summarizeRef.current(), 300);
+      setTimeout(async () => {
+        const polished = doPolish ? await polishRef.current() : null;
+        if (doSummary) summarizeRef.current(polished ? { text: transcriptForAI(polished) } : {});
+      }, 300);
     }
   }, [listening, finalizing, pending]);
 
@@ -764,6 +843,7 @@ export function LiveSummaryView() {
       setFinalizing(false);
     }
     // Final summary with everything captured, once the last chunks are transcribed
+    finalPolishRef.current = true;
     if (!summaryEdited) finalSummaryRef.current = true;
   }
 
@@ -824,7 +904,8 @@ export function LiveSummaryView() {
   }
 
   const hasNewSinceSummary = transcript.trim().length > summarizedLenRef.current;
-  const busy = listening || finalizing || pending > 0;
+  const busy = listening || finalizing || pending > 0 || polishing;
+  const unpolishedCount = segments.filter(needsPolish).length;
 
   return (
     <div className="px-4 pt-4 pb-28 space-y-4 lg:max-w-5xl lg:mx-auto lg:h-full lg:overflow-y-auto">
@@ -883,17 +964,17 @@ export function LiveSummaryView() {
                 setUseAI(v);
                 writePref(ENGINE_KEY, v ? "1" : "0");
               }}
-              label="תמלול AI משופר (עברית + אנגלית)"
+              label="תמלול אודיו עם Gemini (דורש מכסה בתשלום)"
             />
             <p className="text-xs text-muted-foreground">
               {useAI
-                ? "האודיו נשלח לתמלול בקטעים של כמה שניות — מדויק יותר, ומילים באנגלית נשמרות באנגלית."
-                : "זיהוי הדיבור המובנה של הדפדפן — מהיר, אבל חלש במילים באנגלית."}
+                ? "האודיו נשלח ל-Gemini בקטעים של כמה שניות. בלי מכסה בתשלום זה נעצר אחרי כמה דקות ועובר לדפדפן."
+                : "זיהוי הדיבור של הדפדפן. בסיום ההקלטה Claude מתקן את הטקסט: מילים באנגלית, שמות, ראשי תיבות ופיסוק."}
             </p>
           </div>
         )}
 
-        {useAI && aiSupported && (
+        {discussion && (
           <div>
             <Label htmlFor="live-vocab">מונחים, ראשי תיבות ושמות (מופרדים בפסיק)</Label>
             <Input
@@ -971,7 +1052,22 @@ export function LiveSummaryView() {
                     <Loader2 size={12} className="animate-spin" /> מתמלל{pending > 1 ? ` (${pending})` : ""} ·
                   </>
                 )}
+                {polishing && (
+                  <>
+                    <Loader2 size={12} className="animate-spin" /> Claude משפר את התמלול ·
+                  </>
+                )}
                 {segments.length} קטעים
+                {fullEdit === null && unpolishedCount > 0 && !busy && (
+                  <Button
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => void polishTranscript()}
+                    title="Claude יתקן מילים באנגלית, שמות, ראשי תיבות ופיסוק"
+                  >
+                    <Wand2 size={12} /> שפר תמלול ({unpolishedCount})
+                  </Button>
+                )}
                 {fullEdit === null && segments.length > 0 && !busy && (
                   <Button variant="ghost" className="h-7 px-2 text-xs" onClick={openFullEdit}>
                     <Pencil size={12} /> ערוך תמלול
