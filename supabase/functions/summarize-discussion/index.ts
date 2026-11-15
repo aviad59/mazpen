@@ -13,7 +13,7 @@
  * Required Edge Function secrets:
  *   GEMINI_API_KEY   – API key for the Gemini API (Google AI Studio / Gemini Enterprise)
  * Optional:
- *   GEMINI_MODEL     – model id, defaults to "gemini-2.5-flash"
+ *   GEMINI_MODEL     – model id; falls back to gemini-3.8-flash, then gemini-flash-latest
  *
  * JWT verification is left on (Supabase default), so only signed-in users of
  * the app can call it.
@@ -104,6 +104,43 @@ const SYSTEM_PROMPT = `אתה רשם דיונים מקצועי ביחידה צב
 - הדיון מתנהל בעברית עם מילים ומונחים באנגלית. השאר מונחים באנגלית באותיות לטיניות כפי שנאמרו (למשל deadline, API) — אל תתרגם ואל תתעתק אותם לעברית. אם מונח באנגלית הופיע בתמלול בתעתיק עברי שגוי, כתוב אותו באנגלית.
 - ייתכן שהדיון עוד לא הסתיים — במקרה כזה סכם את מה שנאמר עד כה.`;
 
+// ---- Gemini call with model fallback (kept inline: the API deploy doesn't bundle shared folders) ----
+// Google retires model ids for new keys (gemini-2.5-flash was), so try the configured model first,
+// then current defaults, moving on only when a model is unavailable — not on other errors.
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-flash-latest"];
+
+function modelChain(configured: string | undefined): string[] {
+  return [...new Set([configured?.trim(), ...DEFAULT_MODELS].filter((m): m is string => !!m))];
+}
+
+type GeminiResult =
+  // deno-lint-ignore no-explicit-any
+  | { ok: true; data: any; model: string }
+  | { ok: false; status: number; error: string };
+
+async function generateWithFallback(apiKey: string, models: string[], payload: unknown): Promise<GeminiResult> {
+  let last: GeminiResult = { ok: false, status: 500, error: "No Gemini model configured" };
+  for (const model of models) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, data, model };
+    const error: string = data?.error?.message ?? `Gemini request failed (${res.status})`;
+    last = { ok: false, status: res.status, error };
+    const unavailable =
+      res.status === 404 || /no longer available|not found|not supported|deprecated|retired/i.test(error);
+    if (!unavailable) break;
+  }
+  return last;
+}
+// ---- end Gemini helper ----
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -125,7 +162,7 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured" }, 500);
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+  const models = modelChain(Deno.env.get("GEMINI_MODEL"));
 
   let body: { discussionName?: string; participants?: string[]; seniorName?: string; transcript?: string };
   try {
@@ -150,26 +187,17 @@ Deno.serve(async (req) => {
     `תמלול:\n${transcript}`;
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [{ role: "user", parts: [{ text: userText }] }],
-          generationConfig: { temperature: 0.2 },
-        }),
-      }
-    );
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg = data?.error?.message ?? `Gemini request failed (${res.status})`;
-      return json({ error: msg }, 502);
-    }
+    const r = await generateWithFallback(apiKey, models, {
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: userText }] }],
+      generationConfig: { temperature: 0.2 },
+    });
+    if (!r.ok) return json({ error: r.error }, r.status === 429 ? 429 : 502);
+    const data = r.data;
+    const model = r.model;
 
     const summary: string = (data?.candidates?.[0]?.content?.parts ?? [])
+      .filter((p: { thought?: boolean }) => !p.thought)
       .map((p: { text?: string }) => p.text ?? "")
       .join("")
       .trim();

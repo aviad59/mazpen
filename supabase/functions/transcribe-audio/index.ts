@@ -18,7 +18,7 @@
  *
  * Secrets:
  *   GEMINI_API_KEY             – required
- *   GEMINI_TRANSCRIBE_MODEL    – optional, defaults to "gemini-2.5-flash"
+ *   GEMINI_TRANSCRIBE_MODEL    – optional; falls back to gemini-3.8-flash, then gemini-flash-latest
  */
 
 // ---- security helpers (kept inline: the API deploy doesn't bundle shared folders) ----
@@ -87,6 +87,43 @@ Rules:
 
 Output only the transcript text — no labels, no quotes, no timestamps, no notes.`;
 
+// ---- Gemini call with model fallback (kept inline: the API deploy doesn't bundle shared folders) ----
+// Google retires model ids for new keys (gemini-2.5-flash was), so try the configured model first,
+// then current defaults, moving on only when a model is unavailable — not on other errors.
+const DEFAULT_MODELS = ["gemini-3.8-flash", "gemini-flash-latest"];
+
+function modelChain(configured: string | undefined): string[] {
+  return [...new Set([configured?.trim(), ...DEFAULT_MODELS].filter((m): m is string => !!m))];
+}
+
+type GeminiResult =
+  // deno-lint-ignore no-explicit-any
+  | { ok: true; data: any; model: string }
+  | { ok: false; status: number; error: string };
+
+async function generateWithFallback(apiKey: string, models: string[], payload: unknown): Promise<GeminiResult> {
+  let last: GeminiResult = { ok: false, status: 500, error: "No Gemini model configured" };
+  for (const model of models) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, data, model };
+    const error: string = data?.error?.message ?? `Gemini request failed (${res.status})`;
+    last = { ok: false, status: res.status, error };
+    const unavailable =
+      res.status === 404 || /no longer available|not found|not supported|deprecated|retired/i.test(error);
+    if (!unavailable) break;
+  }
+  return last;
+}
+// ---- end Gemini helper ----
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -115,7 +152,7 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return json({ error: "GEMINI_API_KEY is not configured", code: "not_configured" }, 500);
-  const model = Deno.env.get("GEMINI_TRANSCRIBE_MODEL") || "gemini-2.5-flash";
+  const models = modelChain(Deno.env.get("GEMINI_TRANSCRIBE_MODEL"));
 
   let body: {
     audio?: string;
@@ -151,45 +188,36 @@ Deno.serve(async (req) => {
     `Previous transcript (context only, do not repeat): ${previous || "—"}\n\n` +
     `Transcribe the attached audio.`;
 
-  const generationConfig: Record<string, unknown> = { temperature: 0, maxOutputTokens: 2048 };
-  // Flash models: skip "thinking" for lower latency — transcription doesn't need it.
-  if (/flash/i.test(model)) generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  // No thinkingConfig: its shape differs between model generations and a wrong one is rejected.
+  // Thinking tokens count toward maxOutputTokens, so leave plenty of room for the transcript.
+  const payload = {
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: context },
+          { inlineData: { mimeType, data: audio } },
+        ],
+      },
+    ],
+    generationConfig: { temperature: 0, maxOutputTokens: 8192 },
+  };
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-          contents: [
-            {
-              role: "user",
-              parts: [
-                { text: context },
-                { inlineData: { mimeType, data: audio } },
-              ],
-            },
-          ],
-          generationConfig,
-        }),
-      }
-    );
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      const msg = data?.error?.message ?? `Gemini request failed (${res.status})`;
+    const r = await generateWithFallback(apiKey, models, payload);
+    if (!r.ok) {
       // Free-tier keys hit per-minute limits quickly — tell the client so it can back off and retry.
-      if (res.status === 429) return json({ error: msg, code: "rate_limited" }, 429);
-      return json({ error: msg }, 502);
+      if (r.status === 429) return json({ error: r.error, code: "rate_limited" }, 429);
+      return json({ error: r.error }, 502);
     }
 
-    const raw: string = (data?.candidates?.[0]?.content?.parts ?? [])
+    const raw: string = (r.data?.candidates?.[0]?.content?.parts ?? [])
+      .filter((p: { thought?: boolean }) => !p.thought)
       .map((p: { text?: string }) => p.text ?? "")
       .join("");
 
-    return json({ text: clean(raw), model });
+    return json({ text: clean(raw), model: r.model });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
