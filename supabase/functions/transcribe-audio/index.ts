@@ -101,23 +101,39 @@ type GeminiResult =
   | { ok: true; data: any; model: string }
   | { ok: false; status: number; error: string };
 
-async function generateWithFallback(apiKey: string, models: string[], payload: unknown): Promise<GeminiResult> {
+async function generateWithFallback(
+  apiKey: string,
+  models: string[],
+  // deno-lint-ignore no-explicit-any
+  payload: { generationConfig?: Record<string, any> } & Record<string, unknown>
+): Promise<GeminiResult> {
   let last: GeminiResult = { ok: false, status: 500, error: "No Gemini model configured" };
   for (const model of models) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify(payload),
+    let body = payload;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify(body),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      if (res.ok) return { ok: true, data, model };
+      const error: string = data?.error?.message ?? `Gemini request failed (${res.status})`;
+      last = { ok: false, status: res.status, error };
+      // A model that doesn't accept the thinking setting: same model again, without it.
+      if (res.status === 400 && body.generationConfig?.thinkingConfig && /think/i.test(error)) {
+        const { thinkingConfig: _drop, ...rest } = body.generationConfig;
+        body = { ...body, generationConfig: rest };
+        continue;
       }
-    );
-    const data = await res.json().catch(() => null);
-    if (res.ok) return { ok: true, data, model };
-    const error: string = data?.error?.message ?? `Gemini request failed (${res.status})`;
-    last = { ok: false, status: res.status, error };
+      break;
+    }
+    if (last.ok) return last;
     const unavailable =
-      res.status === 404 || /no longer available|not found|not supported|deprecated|retired/i.test(error);
+      last.status === 404 || /no longer available|not found|not supported|deprecated|retired/i.test(last.error);
     if (!unavailable) break;
   }
   return last;
@@ -188,7 +204,7 @@ Deno.serve(async (req) => {
     `Previous transcript (context only, do not repeat): ${previous || "—"}\n\n` +
     `Transcribe the attached audio.`;
 
-  // No thinkingConfig: its shape differs between model generations and a wrong one is rejected.
+  // Minimal thinking for speed (Gemini 3 setting; dropped automatically if a model rejects it).
   // Thinking tokens count toward maxOutputTokens, so leave plenty of room for the transcript.
   const payload = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -201,7 +217,7 @@ Deno.serve(async (req) => {
         ],
       },
     ],
-    generationConfig: { temperature: 0, maxOutputTokens: 8192 },
+    generationConfig: { temperature: 0, maxOutputTokens: 8192, thinkingConfig: { thinkingLevel: "minimal" } },
   };
 
   try {

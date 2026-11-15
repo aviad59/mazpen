@@ -8,6 +8,7 @@ import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
 import { Switch } from "./ui/Switch";
+import { DiscussionPicker } from "./DiscussionPicker";
 import { Input, Label, Textarea } from "./ui/Input";
 import type { DiscussionStatus } from "@/types";
 
@@ -159,11 +160,15 @@ export function LiveSummaryView() {
   const [discussionId, setDiscussionId] = React.useState<string>("");
   const discussion = discussions.find((d) => d.id === discussionId) ?? null;
 
+  const nameOf = React.useCallback((id: string) => lookupParticipant(id)?.name, [lookupParticipant]);
+
   const [segments, setSegments] = React.useState<Segment[]>([]);
   /** Browser-recognized text waiting to be replaced by the AI transcription. */
   const [preview, setPreview] = React.useState<Segment[]>([]);
   const [interim, setInterim] = React.useState("");
   const [pending, setPending] = React.useState(0);
+  /** Per-session AI transcription counters, shown so it's clear what the AI is doing. */
+  const [stats, setStats] = React.useState({ ai: 0, empty: 0 });
   const [listening, setListening] = React.useState(false);
   const [finalizing, setFinalizing] = React.useState(false);
   const [useAI, setUseAI] = React.useState(() => aiSupported && readPref(ENGINE_KEY) !== "0");
@@ -217,6 +222,20 @@ export function LiveSummaryView() {
   segmentsRef.current = segments;
 
   const transcript = React.useMemo(() => transcriptForAI(segments), [segments]);
+
+  // Which discussions have an unsaved draft (re-read when this one's draft changes).
+  const draftTick = segments.length > 0 || !!summary;
+  const hasDraft = React.useCallback(
+    (id: string) => {
+      void draftTick;
+      try {
+        return !!localStorage.getItem(DRAFT_KEY(id));
+      } catch {
+        return false;
+      }
+    },
+    [draftTick]
+  );
   const hasMarker = segments.some((s) => s.src === "marker");
 
   const participantNames = React.useMemo(() => {
@@ -246,6 +265,7 @@ export function LiveSummaryView() {
     setNote("");
     setEditingKey(null);
     setFullEdit(null);
+    setStats({ ai: 0, empty: 0 });
     failedRef.current = [];
     setFailedCount(0);
     setSummary(draft?.summary ?? "");
@@ -315,10 +335,14 @@ export function LiveSummaryView() {
    */
   function settle(job: Job, text: string | null) {
     if (job.session !== sessionRef.current) return;
-    if (text === null) {
-      promotePreview(job.startMs + PREVIEW_LAG_MS, job.endMs + PREVIEW_LAG_MS);
-    } else if (text) {
+    if (text) {
       addSegments([{ at: new Date(job.startMs).toISOString(), text, src: "ai" }]);
+      setStats((s) => ({ ...s, ai: s.ai + 1 }));
+    } else {
+      // No AI text (failed, skipped, or the model heard nothing): keep whatever the browser
+      // caught for this stretch rather than throwing it away.
+      promotePreview(job.startMs + PREVIEW_LAG_MS, job.endMs + PREVIEW_LAG_MS);
+      if (text === "") setStats((s) => ({ ...s, empty: s.empty + 1 }));
     }
 
     // Drop preview lines once every chunk up to them has an AI result.
@@ -675,11 +699,16 @@ export function LiveSummaryView() {
     watermarkSeqRef.current = nextSeqRef.current;
     watermarkEndRef.current = Date.now();
     doneSeqRef.current.clear();
+    setStats({ ai: 0, empty: 0 });
 
     aiActiveRef.current = false;
     if (useAI && aiSupported) {
       const chunker = new AudioChunker({
         onChunk,
+        // Shorter pieces = the accurate text replaces the gray draft sooner.
+        minChunkMs: 4_000,
+        maxChunkMs: 12_000,
+        silenceCutMs: 500,
         onLevel: (level, speaking) => {
           const bar = levelBarRef.current;
           if (!bar) return;
@@ -759,6 +788,7 @@ export function LiveSummaryView() {
     failedRef.current = [];
     setFailedCount(0);
     setEditingKey(null);
+    setStats({ ai: 0, empty: 0 });
     clearDraft(discussionId);
     setSegments([]);
     setPreviewList([]);
@@ -816,14 +846,13 @@ export function LiveSummaryView() {
 
       <Card className="p-4 space-y-3">
         <label className="text-sm font-medium block">דיון</label>
-        <Select
+        <DiscussionPicker
+          discussions={eligible}
           value={discussionId}
+          onChange={setDiscussionId}
           disabled={busy}
-          onChange={(e) => setDiscussionId(e.target.value)}
-          options={[
-            { value: "", label: eligible.length ? "בחר דיון..." : "אין דיונים פתוחים" },
-            ...eligible.map((d) => ({ value: d.id, label: d.name })),
-          ]}
+          nameOf={nameOf}
+          hasDraft={hasDraft}
         />
         {discussion && participantNames.length > 0 && (
           <p className="text-xs text-muted-foreground">משתתפים: {participantNames.join(", ")}</p>
@@ -1029,7 +1058,17 @@ export function LiveSummaryView() {
             </div>
             )}
             {preview.length > 0 && (
-              <p className="text-[11px] text-muted-foreground mt-2">טקסט באפור הוא טיוטה מהירה ויוחלף בתמלול המדויק.</p>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                טקסט באפור = טיוטה מהירה מהדפדפן. הוא מוחלף בטקסט שחור כשהתמלול המדויק של אותו קטע חוזר (כמה שניות).
+              </p>
+            )}
+            {(stats.ai > 0 || stats.empty > 0 || pending > 0 || failedCount > 0) && (
+              <p className="text-[11px] text-muted-foreground mt-1 tabular-nums">
+                תמלול AI: {stats.ai} קטעים תומללו
+                {pending > 0 && ` · ${pending} בעבודה`}
+                {stats.empty > 0 && ` · ${stats.empty} בלי דיבור מזוהה`}
+                {failedCount > 0 && ` · ${failedCount} נכשלו`}
+              </p>
             )}
             {segments.length > 0 && (
               <p className="text-[11px] text-muted-foreground mt-2">לחץ על שורה כדי לתקן אותה.</p>
