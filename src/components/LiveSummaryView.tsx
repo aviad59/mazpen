@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, Flag, Loader2, Mic, Plus, RotateCcw, Save, Sparkles, Square, Trash2 } from "lucide-react";
+import { AlertTriangle, Flag, Loader2, Mic, Pencil, Plus, RotateCcw, Save, Sparkles, Square, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabaseClient";
 import { useStore } from "@/store/useStore";
@@ -53,6 +53,8 @@ interface Segment { at: string; text: string; src?: "ai" | "browser" | "manual" 
 interface Draft { segments: Segment[]; summary: string; senior?: string }
 
 const MARKER_TEXT = "=== מכאן: סיכום הבכיר ===";
+/** How manual notes are shown in the whole-transcript editor. */
+const NOTE_PREFIX = "[הערה] ";
 
 /** Transcript as sent to the summarizer — manual notes and the senior marker are labeled. */
 function transcriptForAI(segments: Segment[]): string {
@@ -173,6 +175,8 @@ export function LiveSummaryView() {
   /** Key (`at|src`) of the transcript line being edited. */
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [editText, setEditText] = React.useState("");
+  /** Whole-transcript edit mode: the text being edited, or null when off. */
+  const [fullEdit, setFullEdit] = React.useState<string | null>(null);
   const failedRef = React.useRef<Job[]>([]);
   const [summary, setSummary] = React.useState("");
   const [summaryEdited, setSummaryEdited] = React.useState(false);
@@ -241,6 +245,7 @@ export function LiveSummaryView() {
     setSenior(draft?.senior ?? "");
     setNote("");
     setEditingKey(null);
+    setFullEdit(null);
     failedRef.current = [];
     setFailedCount(0);
     setSummary(draft?.summary ?? "");
@@ -472,6 +477,36 @@ export function LiveSummaryView() {
   const segKey = (s: Segment) => `${s.at}|${s.src ?? ""}`;
 
   /** Saves an edited transcript line; an empty line is removed. */
+  /** Opens the whole transcript as one editable text (paragraphs separated by a blank line). */
+  function openFullEdit() {
+    setEditingKey(null);
+    setFullEdit(
+      segments
+        .map((s) => (s.src === "marker" ? MARKER_TEXT : s.src === "manual" ? `${NOTE_PREFIX}${s.text}` : s.text))
+        .join("\n\n")
+    );
+  }
+
+  /** Turns the edited text back into transcript lines, keeping the original times where possible. */
+  function saveFullEdit() {
+    if (fullEdit === null) return;
+    const paras = fullEdit.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    let lastMs = 0;
+    const next: Segment[] = paras.map((p, i) => {
+      const orig = segments[i];
+      let ms = orig ? Date.parse(orig.at) : Date.now();
+      if (ms <= lastMs) ms = lastMs + 1; // keep the order exactly as typed
+      lastMs = ms;
+      const at = new Date(ms).toISOString();
+      if (p === MARKER_TEXT) return { at, text: MARKER_TEXT, src: "marker" as const };
+      if (p.startsWith(NOTE_PREFIX.trim())) return { at, text: p.slice(NOTE_PREFIX.trim().length).trim(), src: "manual" as const };
+      const src = orig && isSpeech(orig) ? orig.src : ("manual" as const);
+      return { at, text: p, src };
+    });
+    setSegments(next);
+    setFullEdit(null);
+  }
+
   function commitEdit() {
     const key = editingKey;
     if (!key) return;
@@ -843,7 +878,7 @@ export function LiveSummaryView() {
 
         <div className="flex flex-wrap gap-2 pt-1">
           {!listening ? (
-            <Button variant="accent" onClick={start} disabled={!supported || !discussion || finalizing}>
+            <Button variant="accent" onClick={start} disabled={!supported || !discussion || finalizing || fullEdit !== null}>
               <Mic size={16} /> {segments.length ? "המשך הקלטה" : "התחל הקלטה"}
             </Button>
           ) : (
@@ -908,8 +943,35 @@ export function LiveSummaryView() {
                   </>
                 )}
                 {segments.length} קטעים
+                {fullEdit === null && segments.length > 0 && !busy && (
+                  <Button variant="ghost" className="h-7 px-2 text-xs" onClick={openFullEdit}>
+                    <Pencil size={12} /> ערוך תמלול
+                  </Button>
+                )}
               </span>
             </div>
+            {fullEdit !== null ? (
+              <div className="space-y-2">
+                <Textarea
+                  autoFocus
+                  value={fullEdit}
+                  onChange={(e) => setFullEdit(e.target.value)}
+                  className="min-h-[40vh] lg:min-h-[55vh] resize-y"
+                  aria-label="עריכת כל התמלול"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  כל פסקה (מופרדת בשורה ריקה) היא קטע. שורה שמתחילה ב-"{NOTE_PREFIX.trim()}" נשמרת כהערה ידנית.
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={saveFullEdit}>
+                    <Save size={16} /> שמור תמלול
+                  </Button>
+                  <Button variant="ghost" onClick={() => setFullEdit(null)}>
+                    ביטול
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="max-h-[40vh] lg:max-h-[55vh] overflow-y-auto space-y-1.5 text-sm">
               {segments.length === 0 && preview.length === 0 && !interim && (
                 <p className="text-muted-foreground">
@@ -965,6 +1027,7 @@ export function LiveSummaryView() {
               {interim && <p className="text-muted-foreground italic">{interim}</p>}
               <div ref={transcriptEndRef} />
             </div>
+            )}
             {preview.length > 0 && (
               <p className="text-[11px] text-muted-foreground mt-2">טקסט באפור הוא טיוטה מהירה ויוחלף בתמלול המדויק.</p>
             )}

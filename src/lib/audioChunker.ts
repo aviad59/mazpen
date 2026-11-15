@@ -116,8 +116,11 @@ export class AudioChunker {
     this.ctx = ctx;
     const resumed = ctx.state === "suspended" ? ctx.resume().catch(() => {}) : Promise.resolve();
 
+    // Raw-ish audio: the browser's noise suppression / echo cancellation are tuned for calls and
+    // tend to eat quiet or distant speech. The transcription model handles room noise better than
+    // it handles those artifacts. Auto gain stays on so a far speaker is still loud enough.
     this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true },
     });
     await resumed;
     this.ratio = ctx.sampleRate / TARGET_RATE;
