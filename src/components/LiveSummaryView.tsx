@@ -7,7 +7,6 @@ import { AudioChunker, type AudioChunk } from "@/lib/audioChunker";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
 import { Select } from "./ui/Select";
-import { Switch } from "./ui/Switch";
 import { DiscussionPicker } from "./DiscussionPicker";
 import { Input, Label, Textarea } from "./ui/Input";
 import type { DiscussionStatus } from "@/types";
@@ -58,7 +57,8 @@ interface Segment {
   polished?: boolean;
 }
 /** Browser-recognized lines that Claude hasn't cleaned up yet. */
-const needsPolish = (s: Segment) => (s.src === "browser" || s.src === undefined) && !s.polished && !!s.text.trim();
+const needsPolish = (s: Segment) =>
+  (s.src === "browser" || s.src === "ai" || s.src === undefined) && !s.polished && !!s.text.trim();
 const POLISH_BATCH = 150;
 interface Draft { segments: Segment[]; summary: string; senior?: string }
 
@@ -85,8 +85,29 @@ interface Job {
 
 const DRAFT_KEY = (id: string) => `live-summary-draft:${id}`;
 const VOCAB_KEY = "live-summary-vocab";
-/** Gemini audio transcription: off unless the user turns it on (needs a paid Gemini quota). */
-const ENGINE_KEY = "live-summary-gemini-audio";
+/**
+ * Which engine turns audio into text:
+ *  - "browser": the browser's built-in recognition (free; Claude polishes it afterwards)
+ *  - "ivrit":   ivrit.ai's Hebrew Whisper model on the user's own Colab GPU (colab/ivrit_transcribe.ipynb)
+ *  - "gemini":  Gemini via the transcribe-audio edge function (needs a paid Gemini quota)
+ */
+type Engine = "browser" | "ivrit" | "gemini";
+const ENGINE_KEY = "live-summary-engine";
+const IVRIT_URL_KEY = "live-summary-ivrit-url";
+const IVRIT_TOKEN_KEY = "live-summary-ivrit-token";
+/** Opens the server notebook straight from the (public) GitHub repo. */
+const COLAB_NOTEBOOK_URL =
+  "https://colab.research.google.com/github/aviad59/mazpen/blob/worktree-hebrew-transcription/colab/ivrit_transcribe.ipynb";
+const ENGINE_LABEL: Record<Engine, string> = {
+  browser: "זיהוי הדיבור של הדפדפן (חינם)",
+  ivrit: "ivrit.ai — מודל עברית על Colab",
+  gemini: "Gemini (דורש מכסה בתשלום)",
+};
+
+/** Base URL typed/pasted by the user, normalized (no trailing slash). */
+function normalizeUrl(u: string): string {
+  return u.trim().replace(/\/+$/, "");
+}
 /** Browser results arrive a little after the words were spoken. */
 const PREVIEW_LAG_MS = 1500;
 /** Chunks with less detected speech than this are not sent (avoids hallucinations on silence). */
@@ -181,7 +202,21 @@ export function LiveSummaryView() {
   const [stats, setStats] = React.useState({ ai: 0, empty: 0 });
   const [listening, setListening] = React.useState(false);
   const [finalizing, setFinalizing] = React.useState(false);
-  const [useAI, setUseAI] = React.useState(() => aiSupported && readPref(ENGINE_KEY) === "1");
+  const [engine, setEngine] = React.useState<Engine>(() => {
+    const saved = readPref(ENGINE_KEY) as Engine | null;
+    if (!aiSupported) return "browser";
+    return saved === "browser" || saved === "gemini" || saved === "ivrit" ? saved : "ivrit";
+  });
+  const [ivritUrl, setIvritUrl] = React.useState(() => readPref(IVRIT_URL_KEY) ?? "");
+  const [ivritToken, setIvritToken] = React.useState(() => readPref(IVRIT_TOKEN_KEY) ?? "");
+  const [ivritStatus, setIvritStatus] = React.useState<{ ok: boolean; text: string } | null>(null);
+  const [checkingIvrit, setCheckingIvrit] = React.useState(false);
+  /** Engine of the running session (callbacks read it through this ref). */
+  const engineRef = React.useRef<Engine>(engine);
+  const ivritRef = React.useRef({ url: ivritUrl, token: ivritToken });
+  ivritRef.current = { url: ivritUrl, token: ivritToken };
+  React.useEffect(() => writePref(IVRIT_URL_KEY, ivritUrl), [ivritUrl]);
+  React.useEffect(() => writePref(IVRIT_TOKEN_KEY, ivritToken), [ivritToken]);
   const [polishing, setPolishing] = React.useState(false);
   const [vocab, setVocab] = React.useState(() => readPref(VOCAB_KEY) ?? "");
   const [senior, setSenior] = React.useState("");
@@ -373,7 +408,45 @@ export function LiveSummaryView() {
     setPending((n) => Math.max(0, n - 1));
   }
 
-  /** One call to the transcribe-audio function. Throws an Error with an optional `code`. */
+  /** Calls the user's ivrit.ai server (Colab). Throws an Error with an optional `code`. */
+  async function callIvrit(audio: string, prompt: string): Promise<string> {
+    const base = normalizeUrl(ivritRef.current.url);
+    if (!base) throw Object.assign(new Error("לא הוגדרה כתובת לשרת ivrit.ai"), { code: "not_configured" });
+    let res: Response;
+    try {
+      res = await fetch(`${base}/transcribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ivritRef.current.token.trim()}` },
+        body: JSON.stringify({ audio, prompt }),
+      });
+    } catch {
+      // Network failure: Colab session ended, tunnel down, or wrong URL.
+      throw Object.assign(new Error("שרת ivrit.ai לא זמין — בדוק שה-Colab עדיין רץ ושהכתובת עדכנית"), { code: "unreachable" });
+    }
+    const data = await res.json().catch(() => null);
+    if (res.status === 401) throw Object.assign(new Error("קוד הגישה לשרת ivrit.ai שגוי"), { code: "not_configured" });
+    if (!res.ok) throw new Error(data?.detail ?? `שרת ivrit.ai החזיר שגיאה (${res.status})`);
+    return String(data?.text ?? "").trim();
+  }
+
+  /** Checks the ivrit.ai server settings (the "בדוק חיבור" button). */
+  async function checkIvrit() {
+    const base = normalizeUrl(ivritUrl);
+    if (!base) return setIvritStatus({ ok: false, text: "הדבק את הכתובת מה-Colab" });
+    setCheckingIvrit(true);
+    try {
+      const res = await fetch(`${base}/health`, { headers: { Authorization: `Bearer ${ivritToken.trim()}` } });
+      if (res.status === 401) setIvritStatus({ ok: false, text: "קוד הגישה שגוי" });
+      else if (!res.ok) setIvritStatus({ ok: false, text: `השרת החזיר שגיאה (${res.status})` });
+      else setIvritStatus({ ok: true, text: "מחובר ✓" });
+    } catch {
+      setIvritStatus({ ok: false, text: "לא מצליח להגיע לשרת — האם ה-Colab רץ והכתובת עדכנית?" });
+    } finally {
+      setCheckingIvrit(false);
+    }
+  }
+
+  /** One transcription call for a chunk, on the session's engine. Throws an Error with an optional `code`. */
   async function callTranscribe(job: Job): Promise<string> {
     const ctx = contextRef.current;
     const previousText = segmentsRef.current
@@ -381,6 +454,14 @@ export function LiveSummaryView() {
       .map((s) => s.text)
       .join(" ")
       .slice(-600);
+    if (engineRef.current === "ivrit") {
+      // Whisper's prompt is short (~220 tokens): names and terms first, then the last few words.
+      const prompt = [ctx.participants.join(", "), ctx.vocabulary.join(", "), previousText.slice(-150)]
+        .filter(Boolean)
+        .join(". ")
+        .slice(0, 400);
+      return callIvrit(job.audio, prompt);
+    }
     const { data, error: fnError } = await supabase.functions.invoke("transcribe-audio", {
       body: {
         audio: job.audio,
@@ -438,7 +519,11 @@ export function LiveSummaryView() {
       if (job.session !== sessionRef.current) return;
       const code = (e as { code?: string }).code;
       if (code === "not_configured") {
-        fallbackToBrowser("תמלול ה-AI עוד לא מוגדר בשרת — ממשיך עם זיהוי הדיבור של הדפדפן.");
+        fallbackToBrowser(
+          engineRef.current === "ivrit"
+            ? `${e instanceof Error ? e.message : String(e)} — ממשיך עם זיהוי הדיבור של הדפדפן.`
+            : "תמלול ה-AI עוד לא מוגדר בשרת — ממשיך עם זיהוי הדיבור של הדפדפן."
+        );
         return settle(job, null);
       }
       // A used-up daily quota won't recover by retrying — switch to the browser for this session.
@@ -786,13 +871,20 @@ export function LiveSummaryView() {
     setStats({ ai: 0, empty: 0 });
 
     aiActiveRef.current = false;
-    if (useAI && aiSupported) {
+    let useEngine: Engine = aiSupported ? engine : "browser";
+    if (useEngine === "ivrit" && (!normalizeUrl(ivritUrl) || !ivritToken.trim())) {
+      setWarning("לא הוגדרו כתובת וקוד גישה לשרת ivrit.ai — מקליט עם זיהוי הדפדפן.");
+      useEngine = "browser";
+    }
+    engineRef.current = useEngine;
+    if (useEngine !== "browser") {
       const chunker = new AudioChunker({
         onChunk,
-        // Shorter pieces = the accurate text replaces the gray draft sooner.
-        minChunkMs: 4_000,
-        maxChunkMs: 12_000,
-        silenceCutMs: 500,
+        // Whisper (ivrit.ai) works best with longer context; Gemini pieces are shorter so the
+        // accurate text replaces the gray draft sooner.
+        ...(useEngine === "ivrit"
+          ? { minChunkMs: 6_000, maxChunkMs: 25_000, silenceCutMs: 600 }
+          : { minChunkMs: 4_000, maxChunkMs: 12_000, silenceCutMs: 500 }),
         onLevel: (level, speaking) => {
           const bar = levelBarRef.current;
           if (!bar) return;
@@ -960,22 +1052,78 @@ export function LiveSummaryView() {
         )}
 
         {aiSupported && (
-          <div className="space-y-1">
-            <Switch
-              id="live-ai-engine"
-              checked={useAI}
-              disabled={listening}
-              onChange={(v) => {
-                setUseAI(v);
-                writePref(ENGINE_KEY, v ? "1" : "0");
-              }}
-              label="תמלול אודיו עם Gemini (דורש מכסה בתשלום)"
-            />
-            <p className="text-xs text-muted-foreground">
-              {useAI
-                ? "האודיו נשלח ל-Gemini בקטעים של כמה שניות. בלי מכסה בתשלום זה נעצר אחרי כמה דקות ועובר לדפדפן."
-                : "זיהוי הדיבור של הדפדפן. בסיום ההקלטה Claude מתקן את הטקסט: מילים באנגלית, שמות, ראשי תיבות ופיסוק."}
-            </p>
+          <div className="space-y-2">
+            <div>
+              <Label htmlFor="live-engine">מנוע תמלול</Label>
+              <Select
+                id="live-engine"
+                value={engine}
+                disabled={busy}
+                onChange={(e) => {
+                  const v = e.target.value as Engine;
+                  setEngine(v);
+                  writePref(ENGINE_KEY, v);
+                }}
+                options={(Object.keys(ENGINE_LABEL) as Engine[]).map((k) => ({ value: k, label: ENGINE_LABEL[k] }))}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {engine === "ivrit"
+                  ? "המודל הכי מדויק לעברית. רץ על GPU חינמי שלך ב-Google Colab. בסיום ההקלטה Claude מתקן מילים באנגלית ושמות."
+                  : engine === "gemini"
+                    ? "האודיו נשלח ל-Gemini בקטעים. בלי מכסה בתשלום זה נעצר אחרי כמה דקות ועובר לדפדפן."
+                    : "זיהוי הדיבור של הדפדפן. בסיום ההקלטה Claude מתקן את הטקסט: מילים באנגלית, שמות, ראשי תיבות ופיסוק."}
+              </p>
+            </div>
+
+            {engine === "ivrit" && (
+              <div className="rounded-lg border border-input p-3 space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  לפני הדיון:{" "}
+                  <a href={COLAB_NOTEBOOK_URL} target="_blank" rel="noreferrer" className="underline text-accent">
+                    פתח את מחברת ה-Colab
+                  </a>
+                  , בחר Runtime → Run all, והדבק כאן את הכתובת וקוד הגישה שיודפסו בסוף.
+                </p>
+                <div>
+                  <Label htmlFor="ivrit-url">כתובת השרת</Label>
+                  <Input
+                    id="ivrit-url"
+                    dir="ltr"
+                    value={ivritUrl}
+                    disabled={listening}
+                    onChange={(e) => {
+                      setIvritUrl(e.target.value);
+                      setIvritStatus(null);
+                    }}
+                    placeholder="https://....trycloudflare.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ivrit-token">קוד גישה</Label>
+                  <Input
+                    id="ivrit-token"
+                    dir="ltr"
+                    value={ivritToken}
+                    disabled={listening}
+                    onChange={(e) => {
+                      setIvritToken(e.target.value);
+                      setIvritStatus(null);
+                    }}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={checkIvrit} disabled={checkingIvrit}>
+                    {checkingIvrit && <Loader2 size={14} className="animate-spin" />} בדוק חיבור
+                  </Button>
+                  {ivritStatus && (
+                    <span className={cn("text-xs", ivritStatus.ok ? "text-emerald-600" : "text-destructive")}>
+                      {ivritStatus.text}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
